@@ -73,6 +73,7 @@ func _ready() -> void:
 	_shop_button.offset_right = -2
 	_shop_button.offset_top = 2
 	_shop_button.offset_bottom = 34
+	_shop_button.text = "🛒"
 	_shop_button.flat = true
 	_shop_button.focus_mode = Control.FOCUS_NONE
 	_shop_button.visible = false
