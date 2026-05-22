@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="SpellData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/spell_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "War Surge"
+description = "Give all friendly units +3/+3 twice."
+spell_type = 4
+tier = 4
+is_mage_only = false
+buy_price = 6

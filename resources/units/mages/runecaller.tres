@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Runecaller"
+base_attack = 2
+base_health = 3
+keywords = 0
+race = 3
+mage_effect = 2
+tier = 2

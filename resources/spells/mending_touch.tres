@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="SpellData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/spell_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Mending Touch"
+description = "Give a random friendly unit +(1+ASP) ATK and +(1+HSP) HP."
+spell_type = 8
+tier = 0
+is_mage_only = true
+buy_price = 3

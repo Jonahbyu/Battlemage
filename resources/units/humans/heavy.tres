@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://resources/unit_data.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/weapons/machine_gun.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Heavy"
+base_attack = 3
+base_health = 6
+keywords = 0
+race = 1
+human_effect = 9
+tier = 3
+default_weapon = ExtResource("2")

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Soul Tether"
+base_attack = 7
+base_health = 7
+keywords = 0
+race = 5
+tier = 3
+covenant_effect = 13

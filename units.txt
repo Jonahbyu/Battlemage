@@ -1,0 +1,232 @@
+BATTLEMAGE — UNIT ROSTER
+Sorted by Race and Tier
+========================================
+
+KEYWORDS
+--------
+  Taunt        — Must be attacked first
+  Divine Shield — Absorbs the first hit taken
+  Poisonous    — Kills any unit it deals damage to
+  Reborn       — Comes back at 1 HP after dying once
+
+========================================
+HUMANS
+========================================
+Humans are a weapon-based faction. Their units synergize with equipping,
+upgrading, and firing guns. Many effects trigger on attack or apply to a
+specific weapon type.
+
+--- Tier 1 ---
+
+  Grunt           1/6
+  Surge: the next weapon purchase or upgrade costs 2 less gold.
+
+  Recruit         1/4
+  Gains +1 ATK permanently each time a friendly unit dies.
+
+  Gunslinger      1/4
+  Death Knell: fires its weapon one final time when it dies.
+
+--- Tier 2 ---
+
+  Sharpshooter    3/4
+  Deals bonus damage when attacking with a Sniper.
+
+  Arms Dealer     1/5
+  Reduces the cost of weapon upgrades.
+
+  Brawler         3/5
+  Fires back at enemies that attack it (counter-attack).
+
+  Demolitionist   3/4
+  Deals bonus damage when attacking with a Shotgun.
+
+  Gunner          3/5
+  Deals bonus damage when attacking with a Machine Gun.
+
+--- Tier 3 ---
+
+  Commander       1/6
+  Aura: grants a bonus to all friendly Humans while alive.
+
+  Quartermaster   3/5
+  Surge: give a random friendly Human +1 weapon level.
+
+  Breacher        3/5  [Default weapon: Shotgun]
+  Surge: give this unit's weapon +2 levels.
+
+  Ranger          3/4  [Default weapon: Sniper]
+  Surge: give this unit's weapon +2 levels.
+
+  Heavy           3/6  [Default weapon: Machine Gun]
+  Surge: give this unit's weapon +2 levels.
+
+--- Tier 4 ---
+
+  Warlord         4/6
+  Aura: all friendly weapons fire twice per attack.
+
+  Duelist         3/6  [Default weapon: Pistol]
+  Dual Wield: fires both its equipped weapon and its backpack weapon on
+  each attack.
+
+========================================
+GOBLINS
+========================================
+Goblins are a swarm faction built around Goblin Peons — cheap 1/1 tokens
+whose stats grow from a shared "stat budget." Many abilities permanently
+increase that budget or manipulate Peons in combat.
+
+--- Tier 1 ---
+
+  Mob Runt        1/2
+  On attack: summon a Goblin Peon.
+
+  Grub Grabber    1/3
+  Death Knell: permanently increase the Peon stat budget by 1.
+
+  Sneak           1/1  [Poisonous]
+  On kill: permanently increase the Peon stat budget by 1.
+
+--- Tier 2 ---
+
+  Pack Leader     2/3
+  Aura: all other Goblins and Peons gain +2 ATK.
+
+  Scrap Bomber    3/1
+  Death Knell: deal 2 damage to a random enemy and summon a Peon.
+
+  Bomb King       4/4
+  Whenever a friendly Peon dies, deal 2 damage to a random enemy.
+
+  Rabble Riser    2/4
+  Surge: permanently increase the Peon stat budget by 2.
+
+  Reckoner        3/4
+  Avenge 2: permanently increase the Peon stat budget by 1.
+  Death Knell: summon a Goblin Peon.
+
+--- Tier 3 ---
+
+  Brood Witch     1/5
+  On attack: give all friendly Peons +3/+3 for this combat.
+
+  Litter Lord     6/6
+  Death Knell: summon a Goblin Peon with Reborn.
+
+  Taskmaster      2/7
+  Aura: all Peons spawned while this is alive use 2x the stat budget.
+
+  Rage Brand      3/5
+  Start of Combat aura: all Peons are given ATK equal to at least
+  125% of their HP. Peons spawned mid-combat inherit this skew.
+
+  Witch Doctor    2/6
+  Death Knell: give a random friendly unit Reborn and Taunt.
+
+--- Tier 4 ---
+
+  Warchief        3/6
+  Aura: whenever any friendly Goblin dies, summon a replacement Peon.
+
+  Chaos Caller    5/5
+  Death Knell: summon 4 Goblin Peons, each at 2x the stat budget.
+
+========================================
+MAGES
+========================================
+Mages are a spell faction. They use a Mage Shop to attach triggers
+(On Attack, Death Knell, Start of Combat, When Attacked) to spells.
+Spell Power is a board-wide stat that scales all spell effects.
+
+--- Tier 1 ---
+
+  Novice          1/3
+  Aura: grants +1 Spell Power while alive.
+
+--- Tier 2 ---
+
+  Spellbinder     2/4
+  Surge: equip the last spell that was bought. Triggers must be
+  purchased separately in the Mage Shop.
+
+  Runecaller      2/3
+  Surge: discover a spell to equip, then immediately cast it.
+
+  Amplifier       2/4
+  Aura: all On Attack spell triggers fire one extra time per attack.
+
+  Spellwright     2/3
+  Surge: give a random allied Mage +1 level on a random trigger.
+
+  Oracle          1/4
+  Surge: give a random allied Mage a random keyword.
+
+--- Tier 3 ---
+
+  Arcane Conduit  2/4
+  Surge: permanently increase Spell Power by 1.
+
+  Wellspring      1/5
+  Surge: deal damage equal to your current Spell Power to all enemies.
+
+  Hexweaver       2/4
+  Aura: all spell trigger fire counts are doubled during combat.
+
+  Echo Caster     2/5
+  Passive: all Start of Combat spells fire one additional time.
+
+--- Tier 4 ---
+
+  Arcanist        2/4
+  Passive: whenever any spell fires, give your entire board +1/+1.
+
+  Channeler       2/4
+  Combat aura: all spell triggers fire one extra time while this
+  unit is alive.
+
+========================================
+NEUTRAL
+========================================
+Neutral units have no race synergy but fit any board. Those without
+explicit tier are baseline units with simple stats and keywords.
+
+--- No Race / Untiered ---
+
+  Footman         2/2
+  No effect. Basic melee unit.
+
+  Warrior         3/2
+  No effect. High-attack melee unit.
+
+  Viper           1/2  [Poisonous]
+  No effect. Kills any unit it damages.
+
+  Defender        1/4  [Taunt]
+  No effect. Forces enemies to attack it first.
+
+  Shielded Bot    2/2  [Divine Shield]
+  No effect. Absorbs the first hit it takes.
+
+  Harvest Golem   2/3  [Reborn]
+  No effect. Comes back at 1 HP after dying once.
+
+--- Tier 3 ---
+
+  Grave Conductor  3/4
+  Each friendly unit's Death Knell fires one additional time.
+
+  Surge Master     3/5
+  All friendly Surges fire twice.
+
+========================================
+SUMMONED TOKENS (not purchasable)
+========================================
+
+  Goblin Peon          1/1
+  Base summon token. Stats scale with the shared Peon stat budget.
+
+  Goblin Peon (Chain)  1/1
+  Death Knell: summon a regular Goblin Peon (no chain recursion).
+
+========================================
