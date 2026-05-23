@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/bench.gd" id="1"]
 
 [node name="Bench" type="Control"]
-custom_minimum_size = Vector2(0, 145)
+custom_minimum_size = Vector2(0, 167)
 size_flags_vertical = 1
 mouse_filter = 2
 script = ExtResource("1")

@@ -101,7 +101,7 @@ border_width_bottom = 2
 border_color = Color(0.50, 0.52, 0.68, 1)
 
 [node name="UnitCard" type="Control"]
-custom_minimum_size = Vector2(100, 152)
+custom_minimum_size = Vector2(115, 175)
 size_flags_vertical = 4
 script = ExtResource("1")
 
@@ -157,8 +157,8 @@ mouse_filter = 2
 [node name="AttackBadge" type="Panel" parent="."]
 offset_left = 4.0
 offset_top = 5.0
-offset_right = 44.0
-offset_bottom = 29.0
+offset_right = 50.0
+offset_bottom = 33.0
 z_index = 5
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_attack")
@@ -170,7 +170,7 @@ text = "1"
 horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 mouse_filter = 2
 
 [node name="HealthBadge" type="Panel" parent="."]
@@ -178,8 +178,8 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -44.0
-offset_top = -22.0
+offset_left = -50.0
+offset_top = -26.0
 offset_right = -4.0
 offset_bottom = 2.0
 z_index = 5
@@ -193,16 +193,16 @@ text = "1"
 horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 mouse_filter = 2
 
 [node name="BuyButton" type="Button" parent="."]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -41.0
+offset_left = -46.0
 offset_top = 5.0
 offset_right = -5.0
-offset_bottom = 41.0
+offset_bottom = 46.0
 text = "+"
 visible = false
 theme_override_font_sizes/font_size = 22

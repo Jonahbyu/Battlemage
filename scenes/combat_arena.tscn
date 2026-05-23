@@ -99,7 +99,7 @@ mouse_filter = 2
 [node name="FightButton" type="Button" parent="RootHBox/MainLayout/CenterRow"]
 layout_mode = 2
 text = "FIGHT!"
-custom_minimum_size = Vector2(120, 50)
+custom_minimum_size = Vector2(150, 64)
 
 [node name="ResultBanner" type="Label" parent="RootHBox/MainLayout/CenterRow"]
 layout_mode = 2
@@ -111,7 +111,7 @@ theme_override_font_sizes/font_size = 36
 layout_mode = 2
 visible = false
 text = "Continue"
-custom_minimum_size = Vector2(100, 50)
+custom_minimum_size = Vector2(130, 64)
 
 [node name="PlayerBoard" parent="RootHBox/MainLayout" instance=ExtResource("2")]
 layout_mode = 2

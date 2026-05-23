@@ -69,10 +69,10 @@ func _ready() -> void:
 	_shop_button.anchor_top = 0.0
 	_shop_button.anchor_right = 1.0
 	_shop_button.anchor_bottom = 0.0
-	_shop_button.offset_left = -24
+	_shop_button.offset_left = -28
 	_shop_button.offset_right = -2
 	_shop_button.offset_top = 2
-	_shop_button.offset_bottom = 34
+	_shop_button.offset_bottom = 39
 	_shop_button.text = "🛒"
 	_shop_button.flat = true
 	_shop_button.focus_mode = Control.FOCUS_NONE

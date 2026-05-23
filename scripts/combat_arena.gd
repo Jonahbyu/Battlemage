@@ -83,6 +83,26 @@ const ALL_UNITS := [
 	preload("res://resources/units/constructs/winder.tres"),
 	preload("res://resources/units/reapers/gravewarden.tres"),
 	preload("res://resources/units/myconids/sporekeeper.tres"),
+	preload("res://resources/units/satyrs/crimson_satyr.tres"),
+	preload("res://resources/units/satyrs/gold_satyr.tres"),
+	preload("res://resources/units/satyrs/silver_satyr.tres"),
+	preload("res://resources/units/satyrs/green_satyr.tres"),
+	preload("res://resources/units/satyrs/black_satyr.tres"),
+	preload("res://resources/units/satyrs/crimson_revenant.tres"),
+	preload("res://resources/units/satyrs/surge_herald.tres"),
+	preload("res://resources/units/satyrs/moon_striker.tres"),
+	preload("res://resources/units/satyrs/grove_caller.tres"),
+	preload("res://resources/units/satyrs/plague_sovereign.tres"),
+	preload("res://resources/units/satyrs/twin_pyre.tres"),
+	preload("res://resources/units/satyrs/gilded_balance.tres"),
+	preload("res://resources/units/satyrs/lunar_surge.tres"),
+	preload("res://resources/units/satyrs/ancient_root.tres"),
+	preload("res://resources/units/satyrs/pestilence.tres"),
+	preload("res://resources/units/satyrs/dark_reveler.tres"),
+	preload("res://resources/units/satyrs/auric_mirror.tres"),
+	preload("res://resources/units/satyrs/eternal_grove.tres"),
+	preload("res://resources/units/satyrs/blood_hunger.tres"),
+	preload("res://resources/units/satyrs/pack_sovereign.tres"),
 ]
 
 const RUNECALLER_SPELL_POOL := [
@@ -1269,7 +1289,7 @@ func _build_all_shops_panel() -> void:
 		var btn := Button.new()
 		btn.text = entry[0]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.custom_minimum_size = Vector2(230, 28)
+		btn.custom_minimum_size = Vector2(230, 42)
 		btn.add_theme_color_override("font_color", entry[1])
 		var method: String = entry[2]
 		btn.pressed.connect(Callable(self, method))
@@ -1671,8 +1691,8 @@ func _do_blood_tribute(free_use: bool) -> void:
 	print("Blood Tribute: -5 HP, +%dg (tier %d × rate %d)!" % [gold_gain, _player_tier, _aztec_shop_data.tribute_rate])
 
 
-func _start_sacrifice_targeting(double_gold: bool) -> void:
-	if not double_gold and _aztec_sacrifice_used:
+func _start_sacrifice_targeting(free_use: bool) -> void:
+	if not free_use and _aztec_sacrifice_used:
 		return
 	var valid: Array = []
 	for card in player_board.units:
@@ -1685,14 +1705,15 @@ func _start_sacrifice_targeting(double_gold: bool) -> void:
 		return
 	_aztec_shop.close()
 	_start_targeting(null, valid, func(picked: UnitCard):
-		var gold_gain := picked.data.tier * _aztec_shop_data.sacrifice_rate * (2 if double_gold else 1)
+		var is_aztec := picked.data.race == RaceType.Race.AZTEC
+		var gold_gain := picked.data.tier * _aztec_shop_data.sacrifice_rate * (2 if is_aztec else 1)
 		_gold += gold_gain
-		if not double_gold:
+		if not free_use:
 			_aztec_sacrifice_used = true
 		_remove_unit_card(picked)
 		_save_resources()
 		_update_resource_bar()
-		print("Sacrifice: +%dg for %s (tier %d)!" % [gold_gain, picked.data.display_name, picked.data.tier])
+		print("Sacrifice: +%dg for %s (tier %d%s)!" % [gold_gain, picked.data.display_name, picked.data.tier, " (Aztec x2)" if is_aztec else ""])
 	)
 
 
@@ -1766,7 +1787,7 @@ func _add_spell_card_to_bench(spell: SpellData) -> void:
 	style.set_border_width_all(1)
 	style.border_color = Color(0.55, 0.40, 0.80, 1.0)
 	card.add_theme_stylebox_override("panel", style)
-	card.custom_minimum_size = Vector2(80, 95)
+	card.custom_minimum_size = Vector2(92, 109)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.tooltip_text = spell.description
 
@@ -1781,14 +1802,14 @@ func _add_spell_card_to_bench(spell: SpellData) -> void:
 
 	var name_lbl := Label.new()
 	name_lbl.text = spell.display_name
-	name_lbl.add_theme_font_size_override("font_size", 10)
+	name_lbl.add_theme_font_size_override("font_size", 12)
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	vbox.add_child(name_lbl)
 
 	var type_lbl := Label.new()
 	type_lbl.text = "SPELL"
-	type_lbl.add_theme_font_size_override("font_size", 9)
+	type_lbl.add_theme_font_size_override("font_size", 11)
 	type_lbl.add_theme_color_override("font_color", Color(0.7, 0.5, 1.0))
 	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(type_lbl)
@@ -2776,7 +2797,7 @@ func _input(event: InputEvent) -> void:
 		if _human_shop.visible or _mage_shop.visible:
 			return
 
-	if _targeting_source != null:
+	if _targeting_callback.is_valid():
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			var card := _get_card_at_pos(event.global_position)
 			if card != null and card in _targeting_valid:
