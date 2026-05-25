@@ -2484,7 +2484,7 @@ func _clear_cache_files() -> void:
 		return
 	for path in [ORDER_SAVE_PATH, BENCH_SAVE_PATH, ROUND_SAVE_PATH,
 			SELL_COUNTER_SAVE_PATH, RESOURCES_SAVE_PATH, FACTIONS_SAVE_PATH]:
-		var fname := path.get_file()
+		var fname: String = path.get_file()
 		if DirAccess.open("user://") != null and FileAccess.file_exists(path):
 			dir.remove(fname)
 
