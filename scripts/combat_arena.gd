@@ -421,6 +421,8 @@ func _ready() -> void:
 		var saved_slot = GameData.get_slot(GameData.current_slot)
 		if saved_slot is Dictionary and not saved_slot.is_empty():
 			_write_slot_to_files(saved_slot)
+		else:
+			_clear_cache_files()
 
 	_load_round()
 	_load_sell_counter()
@@ -2474,6 +2476,17 @@ func _save_player_order() -> void:
 	if file:
 		file.store_string(JSON.stringify(order))
 		file.close()
+
+
+func _clear_cache_files() -> void:
+	var dir := DirAccess.open("user://")
+	if dir == null:
+		return
+	for path in [ORDER_SAVE_PATH, BENCH_SAVE_PATH, ROUND_SAVE_PATH,
+			SELL_COUNTER_SAVE_PATH, RESOURCES_SAVE_PATH, FACTIONS_SAVE_PATH]:
+		var fname := path.get_file()
+		if DirAccess.open("user://") != null and FileAccess.file_exists(path):
+			dir.remove(fname)
 
 
 func _load_player_order() -> Array:
