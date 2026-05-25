@@ -4,10 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-display_name = "Bloodletter"
-base_attack = 3
-base_health = 3
+display_name = "Auric Mirror"
+base_attack = 2
+base_health = 7
 keywords = 0
-race = 6
-aztec_effect = 5
-tier = 2
+race = 10
+satyr_effect = 18
+satyr_color = 2
+tier = 4

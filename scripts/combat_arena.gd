@@ -72,15 +72,39 @@ const ALL_UNITS := [
 	preload("res://resources/units/elves/the_dreamer.tres"),
 	preload("res://resources/units/elves/ancient_grove.tres"),
 	preload("res://resources/units/covenant/covenant_initiate.tres"),
-	preload("res://resources/units/aztecs/sun_priest.tres"),
-	preload("res://resources/units/aztecs/jade_gatherer.tres"),
-	preload("res://resources/units/aztecs/golden_idol.tres"),
-	preload("res://resources/units/aztecs/sun_dancer.tres"),
-	preload("res://resources/units/aztecs/bloodletter.tres"),
-	preload("res://resources/units/aztecs/temple_warden.tres"),
-	preload("res://resources/units/aztecs/sun_jaguar.tres"),
-	preload("res://resources/units/aztecs/high_priest.tres"),
+	preload("res://resources/units/aztecs/gilded_martyr.tres"),
+	preload("res://resources/units/aztecs/blood_witness.tres"),
+	preload("res://resources/units/aztecs/tribute_hunter.tres"),
+	preload("res://resources/units/aztecs/anointed_vessel.tres"),
+	preload("res://resources/units/aztecs/sun_idol.tres"),
+	preload("res://resources/units/aztecs/blood_feast.tres"),
+	preload("res://resources/units/aztecs/sacrifice_scout.tres"),
+	preload("res://resources/units/aztecs/vault_keeper.tres"),
+	preload("res://resources/units/aztecs/gold_effigy.tres"),
+	preload("res://resources/units/aztecs/tithe_warden.tres"),
+	preload("res://resources/units/aztecs/sun_seeker.tres"),
+	preload("res://resources/units/aztecs/the_devourer.tres"),
+	preload("res://resources/units/aztecs/blood_font.tres"),
+	preload("res://resources/units/aztecs/golden_sovereign.tres"),
+	preload("res://resources/units/aztecs/the_starved.tres"),
+	preload("res://resources/units/aztecs/sun_herald.tres"),
 	preload("res://resources/units/constructs/winder.tres"),
+	preload("res://resources/units/constructs/capacitor.tres"),
+	preload("res://resources/units/constructs/volt_striker.tres"),
+	preload("res://resources/units/constructs/reigniter.tres"),
+	preload("res://resources/units/constructs/coil_weaver.tres"),
+	preload("res://resources/units/constructs/iron_sentinel.tres"),
+	preload("res://resources/units/constructs/arc_coil.tres"),
+	preload("res://resources/units/constructs/accumulator.tres"),
+	preload("res://resources/units/constructs/discharge_engine.tres"),
+	preload("res://resources/units/constructs/surge_conduit.tres"),
+	preload("res://resources/units/constructs/charge_siphon.tres"),
+	preload("res://resources/units/constructs/overload_core.tres"),
+	preload("res://resources/units/constructs/meltdown.tres"),
+	preload("res://resources/units/constructs/relay_node.tres"),
+	preload("res://resources/units/constructs/grand_capacitor.tres"),
+	preload("res://resources/units/constructs/recharge_protocol.tres"),
+	preload("res://resources/units/constructs/fission_core.tres"),
 	preload("res://resources/units/reapers/gravewarden.tres"),
 	preload("res://resources/units/myconids/sporekeeper.tres"),
 	preload("res://resources/units/satyrs/crimson_satyr.tres"),
@@ -103,6 +127,12 @@ const ALL_UNITS := [
 	preload("res://resources/units/satyrs/eternal_grove.tres"),
 	preload("res://resources/units/satyrs/blood_hunger.tres"),
 	preload("res://resources/units/satyrs/pack_sovereign.tres"),
+	preload("res://resources/units/satyrs/prismatic_reveler.tres"),
+	preload("res://resources/units/satyrs/crimson_token.tres"),
+	preload("res://resources/units/satyrs/gold_token.tres"),
+	preload("res://resources/units/satyrs/silver_token.tres"),
+	preload("res://resources/units/satyrs/green_token.tres"),
+	preload("res://resources/units/satyrs/black_token.tres"),
 ]
 
 const RUNECALLER_SPELL_POOL := [
@@ -146,6 +176,14 @@ const BENCH_SAVE_PATH := "user://bench_order.json"
 const ROUND_SAVE_PATH := "user://round.json"
 const SELL_COUNTER_SAVE_PATH := "user://sell_counter.json"
 const RESOURCES_SAVE_PATH := "user://resources.json"
+const FACTIONS_SAVE_PATH := "user://active_factions.json"
+
+const ALL_PLAYABLE_FACTIONS: Array = [
+	RaceType.Race.HUMAN, RaceType.Race.ELF, RaceType.Race.MAGE,
+	RaceType.Race.GOBLIN, RaceType.Race.COVENANT, RaceType.Race.AZTEC,
+	RaceType.Race.CONSTRUCT, RaceType.Race.REAPER, RaceType.Race.MYCONID,
+	RaceType.Race.SATYR,
+]
 
 var _round: int = 0
 var _sell_counter: int = 0
@@ -173,6 +211,7 @@ var _enemy_aztec_gold: int = 0
 var _enemy_construct_shop_data: ConstructShopData = null
 var _enemy_reaper_shop_data: ReaperShopData = null
 var _enemy_myconid_shop_data: MyconidShopData = null
+var _enemy_satyr_shop_data: SatyrShopData = null
 var _player_hp: int = 100
 
 # Support slot
@@ -197,6 +236,8 @@ var _aztec_shop_data: AztecShopData = null
 var _aztec_shop: AztecShop = null
 var _aztec_tribute_used: bool = false
 var _aztec_sacrifice_used: bool = false
+var _aztec_free_tributes_available: int = 0
+var _aztec_free_tributes_used: int = 0
 
 # Construct shop
 var _construct_shop_data: ConstructShopData = null
@@ -216,6 +257,9 @@ var _satyr_shop: SatyrShop = null
 
 # Human shop
 var _human_shop: HumanShop = null
+
+# Active factions for this run (6 of 10, chosen randomly at run start)
+var _active_factions: Array = []
 
 # All Shops panel
 var _all_shops_btn: Button = null
@@ -243,11 +287,13 @@ var _targeting_line: Line2D = null
 
 
 func _get_tier_upgrade_cost() -> int:
+	var base: int
 	match _player_tier:
-		1: return 10
-		2: return 20
-		3: return 30
-	return 9999
+		1: base = 10
+		2: base = 20
+		3: base = 30
+		_: return 9999
+	return roundi(base * GameData.tier_cost_mult)
 
 
 func _process(_delta: float) -> void:
@@ -274,6 +320,7 @@ func _ready() -> void:
 
 	discovery_screen.unit_chosen.connect(_on_discovery_unit_chosen)
 	combat_manager.combat_ended.connect(_on_combat_ended)
+	combat_manager.relay_surge_requested.connect(_on_relay_surge_requested)
 
 	_spell_shop = SpellShop.new()
 	add_child(_spell_shop)
@@ -344,15 +391,50 @@ func _ready() -> void:
 	_all_shops_btn.pressed.connect(_on_all_shops_pressed)
 	$RootHBox/MainLayout/ResourceBar.add_child(_all_shops_btn)
 	$RootHBox/MainLayout/ResourceBar.move_child(_all_shops_btn, 0)
-	_build_all_shops_panel()
+
+	# Rename the Reset button to Quit to Menu
+	var menu_btn: Button = $RootHBox/MainLayout/TopBar/ResetButton
+	if menu_btn:
+		menu_btn.text = "Quit to Menu"
+
+	# Add Unit Manual button to the top bar
+	var manual_btn := Button.new()
+	manual_btn.text = "Unit Manual"
+	$RootHBox/MainLayout/TopBar.add_child(manual_btn)
+	$RootHBox/MainLayout/TopBar.move_child(manual_btn, 1)
+	manual_btn.pressed.connect(func(): UnitManual.open(self, {
+		"Human":    Callable(self, "_all_shops_open_humans"),
+		"Goblin":   Callable(self, "_all_shops_open_goblins"),
+		"Mage":     Callable(self, "_all_shops_open_mages"),
+		"Elf":      Callable(self, "_all_shops_open_elves"),
+		"Aztec":    Callable(self, "_all_shops_open_aztecs"),
+		"Construct": Callable(self, "_all_shops_open_constructs"),
+		"Reaper":   Callable(self, "_all_shops_open_reapers"),
+		"Myconid":  Callable(self, "_all_shops_open_myconids"),
+		"Satyr":    Callable(self, "_all_shops_open_satyrs"),
+		"Covenant": Callable(self, "_all_shops_open_covenant"),
+	}))
+
+	# If a slot is active, write its saved data into the individual cache files
+	# so the existing load functions pick it up transparently.
+	if not GameData.gauntlet_mode and GameData.current_slot >= 0:
+		var saved_slot = GameData.get_slot(GameData.current_slot)
+		if saved_slot is Dictionary and not saved_slot.is_empty():
+			_write_slot_to_files(saved_slot)
 
 	_load_round()
 	_load_sell_counter()
 	_load_resources()
+	if not FileAccess.file_exists(RESOURCES_SAVE_PATH):
+		_player_hp = GameData.starting_player_hp
+	_initialize_active_factions()
+	_build_all_shops_panel()
 	_populate_player_board()
 	_populate_bench_from_save()
 	_populate_enemy_board()
 	call_deferred("_setup_support_slot_panel")
+	if GameData.gauntlet_mode:
+		call_deferred("_enter_gauntlet_mode")
 
 	result_banner.visible = false
 	continue_button.visible = false
@@ -363,6 +445,8 @@ func _ready() -> void:
 # ── Population ────────────────────────────────────────────────────────────────
 
 func _populate_player_board() -> void:
+	if GameData.gauntlet_mode:
+		return
 	var saved := _load_player_order()
 	if saved.is_empty():
 		_new_game_discovery = true
@@ -375,6 +459,8 @@ func _populate_player_board() -> void:
 
 
 func _populate_bench_from_save() -> void:
+	if GameData.gauntlet_mode:
+		return
 	for entry in _load_bench():
 		var card: UnitCard = UnitCardScene.instantiate()
 		player_bench.add_unit(card)
@@ -382,16 +468,24 @@ func _populate_bench_from_save() -> void:
 
 
 func _populate_enemy_board() -> void:
+	if GameData.gauntlet_mode:
+		return
 	enemy_board.clear_units()
 
-	const FACTIONS: Array = [
+	const ENEMY_FACTIONS: Array = [
 		RaceType.Race.HUMAN, RaceType.Race.ELF, RaceType.Race.MAGE,
 		RaceType.Race.GOBLIN, RaceType.Race.AZTEC, RaceType.Race.CONSTRUCT,
 		RaceType.Race.REAPER, RaceType.Race.MYCONID, RaceType.Race.COVENANT,
+		RaceType.Race.SATYR,
 	]
-	var faction_theme: RaceType.Race = FACTIONS.pick_random()
+	var available_enemy_factions := ENEMY_FACTIONS.filter(func(f): return _active_factions.has(f))
+	if available_enemy_factions.is_empty():
+		available_enemy_factions = ENEMY_FACTIONS
+	var faction_theme: RaceType.Race = available_enemy_factions.pick_random()
 
-	var eligible: Array = ALL_UNITS.filter(func(u): return u.tier <= _player_tier)
+	var eligible: Array = ALL_UNITS.filter(func(u): return u.tier <= _player_tier and _active_factions.has(u.race))
+	if eligible.is_empty():
+		eligible = ALL_UNITS.filter(func(u): return u.tier <= _player_tier)
 	if eligible.is_empty():
 		eligible = ALL_UNITS.duplicate()
 
@@ -436,12 +530,12 @@ func _populate_enemy_board() -> void:
 		if card.data.race == RaceType.Race.MAGE:
 			card.mage_effect_level = maxi(1, 1 + _lifetime_gold / 15)
 
-		card.current_health = maxi(1, roundi(card.current_health * income_scale))
+		card.current_health = maxi(1, roundi(card.current_health * income_scale * GameData.enemy_hp_mult))
 		if card.data.race == RaceType.Race.HUMAN and card.equipped_weapon != null:
 			# Humans already got their weapon level above; skip ATK scaling so weapon stats do the work
 			pass
 		else:
-			card.current_attack = maxi(1, roundi(card.current_attack * income_scale))
+			card.current_attack = maxi(1, roundi(card.current_attack * income_scale * GameData.enemy_atk_mult))
 
 		_apply_enemy_faction_bonus(card, faction_theme)
 		card.refresh_display()
@@ -481,6 +575,11 @@ func _apply_enemy_faction_bonus(card: UnitCard, faction: RaceType.Race) -> void:
 		RaceType.Race.COVENANT:
 			card.current_health = maxi(1, roundi(card.current_health * 1.15))
 			card.current_attack = maxi(1, roundi(card.current_attack * 1.15))
+		RaceType.Race.SATYR:
+			# Satyrs rely on their color abilities (applied via enemy_satyr_shop_data in combat);
+			# give a moderate stat bonus so they feel threatening without their full upgrade tree
+			card.current_health = maxi(1, roundi(card.current_health * 1.15))
+			card.current_attack = maxi(1, roundi(card.current_attack * 1.15))
 
 
 # Builds enemy shop data scaled to the current _lifetime_gold so enemy faction mechanics
@@ -509,11 +608,9 @@ func _build_enemy_shop_data() -> void:
 	_enemy_aztec_gold = _gold_income * 2  # simulate gold a player would hold at this income level
 
 	_enemy_construct_shop_data = ConstructShopData.new()
-	_enemy_construct_shop_data.charge_cache      = (upg / 2) * 3
-	_enemy_construct_shop_data.block_per_charge  = 1 + upg / 3
-	_enemy_construct_shop_data.counter_per_charge = 1 + upg / 3
-	_enemy_construct_shop_data.recoil_charge     = 1 + upg / 4
-	_enemy_construct_shop_data.resonance_charge  = upg / 4
+	_enemy_construct_shop_data.charge_cache    = (upg / 2) * 3
+	_enemy_construct_shop_data.recoil_charge   = 1 + upg / 4
+	_enemy_construct_shop_data.resonance_charge = upg / 4
 
 	_enemy_reaper_shop_data = ReaperShopData.new()
 	_enemy_reaper_shop_data.doom_damage      = 100 + upg * 25
@@ -522,6 +619,14 @@ func _build_enemy_shop_data() -> void:
 	_enemy_myconid_shop_data = MyconidShopData.new()
 	_enemy_myconid_shop_data.sporulation_rate = maxi(1, 1 + upg / 3)
 	_enemy_myconid_shop_data.spore_buff_level = maxi(1, 1 + upg / 2)
+
+	_enemy_satyr_shop_data = SatyrShopData.new()
+	_enemy_satyr_shop_data.crimson_damage      = 5 + upg * 5
+	_enemy_satyr_shop_data.gold_atk_bonus      = 1 + upg / 2
+	_enemy_satyr_shop_data.silver_bonus_damage = 5 + upg * 5
+	_enemy_satyr_shop_data.green_stat_bonus    = 1 + upg / 2
+	_enemy_satyr_shop_data.black_debuff_percent = mini(60, 10 + upg * 10)
+	_enemy_satyr_shop_data.prismatic_percent   = mini(60, 20 + upg * 5)
 
 
 # ── Round flow ────────────────────────────────────────────────────────────────
@@ -543,63 +648,7 @@ func _on_continue_pressed() -> void:
 
 
 func _on_reset_pressed() -> void:
-	player_board.clear_units()
-	player_bench.clear_units()
-	if _support_card != null and is_instance_valid(_support_card):
-		if _support_slot_panel != null and _support_card.get_parent() == _support_slot_panel:
-			_support_slot_panel.remove_child(_support_card)
-		_support_card.queue_free()
-	_support_card = null
-	_support_slot_unlocked = false
-	_round = 0
-	_sell_counter = 0
-	_gold = 0
-	_gold_income = 2
-	_lifetime_gold = 0
-	_player_tier = 1
-	_player_hp = 100
-	_asp = 1
-	_hsp = 1
-	_goblin_shop_data = GoblinShopData.new()
-	_elf_shop_data = ElfShopData.new()
-	_covenant_shop_data = CovenantShopData.new()
-	_aztec_shop_data = AztecShopData.new()
-	_aztec_tribute_used = false
-	_aztec_sacrifice_used = false
-	_construct_shop_data = ConstructShopData.new()
-	_reaper_shop_data = ReaperShopData.new()
-	_myconid_shop_data = MyconidShopData.new()
-	_satyr_shop_data = SatyrShopData.new()
-	_clear_spell_hand_nodes()
-	_close_mage_shop()
-	if _spell_discovery_panel != null:
-		_spell_discovery_panel.queue_free()
-		_spell_discovery_panel = null
-	_spell_shop.new_round()
-	_discovery_from_combat = false
-	_new_game_discovery = false
-	_board_template = []
-	if _drag_card != null:
-		_drag_card.queue_free()
-		_drag_card = null
-	_drag_origin_container = null
-	_drag_origin_idx = -1
-	_drag_origin_visual_idx = -1
-	player_board.is_locked = false
-	fight_button.visible = true
-	continue_button.visible = false
-	result_banner.visible = false
-	_save_player_order()
-	_save_bench()
-	_save_round()
-	_save_sell_counter()
-	_save_resources()
-	_update_sell_label()
-	_update_resource_bar()
-	_update_support_slot_ui()
-	_populate_enemy_board()
-	_new_game_discovery = true
-	discovery_screen.activate(_player_tier)
+	_return_to_menu()
 
 
 func _on_toggle_log_pressed() -> void:
@@ -878,11 +927,24 @@ func _fire_surge(card: UnitCard) -> void:
 					print("Rite Sage: Berserk +%d%% → %d%%!" % [sage_gain, _covenant_shop_data.berserk_multiplier_percent])
 		elif card.data.race == RaceType.Race.AZTEC:
 			match card.data.aztec_effect:
-				AztecEffect.Effect.TRIBUTE_SURGE:
-					_do_blood_tribute(true)
-					card.flash_surge_source()
-				AztecEffect.Effect.SACRIFICE_SURGE:
+				AztecEffect.Effect.SACRIFICE_SCOUT:
 					_start_sacrifice_targeting(true)
+					card.flash_surge_source()
+				AztecEffect.Effect.SUN_SEEKER:
+					var has_other := false
+					for c in player_board.units:
+						if is_instance_valid(c) and c != card and c.data != null \
+								and c.data.race == RaceType.Race.AZTEC:
+							has_other = true
+							break
+					if not has_other:
+						for c in player_bench.units:
+							if is_instance_valid(c) and c.data != null \
+									and c.data.race == RaceType.Race.AZTEC:
+								has_other = true
+								break
+					if has_other:
+						discovery_screen.activate_filtered(_player_tier, RaceType.Race.AZTEC)
 					card.flash_surge_source()
 		elif card.data.race == RaceType.Race.MYCONID:
 			match card.data.myconid_effect:
@@ -911,6 +973,67 @@ func _fire_surge(card: UnitCard) -> void:
 					_save_player_order()
 					card.flash_surge_source()
 					print("Shade Stalker Surge: gained Windfury!")
+		elif card.data.race == RaceType.Race.CONSTRUCT:
+			match card.data.construct_effect:
+				ConstructEffect.Effect.COIL_WEAVER:
+					var gain := 2 if card.is_radiant else 1
+					_construct_shop_data.charge_cache += gain
+					_save_resources()
+					card.flash_surge_source()
+					print("Coil Weaver Battlecry: all Constructs +%d SOC Charge (cache now %d)!" % [gain, _construct_shop_data.charge_cache])
+				ConstructEffect.Effect.SURGE_CONDUIT:
+					var sc_gain := 6 if card.is_radiant else 3
+					for unit: UnitCard in player_board.units:
+						if is_instance_valid(unit) and unit.data != null \
+								and unit.data.race == RaceType.Race.CONSTRUCT:
+							unit.construct_persistent_charge += sc_gain
+							if combat_manager.is_running:
+								combat_manager._add_construct_charge(unit, sc_gain, true)
+							else:
+								unit.construct_charge += sc_gain
+							unit.refresh_display()
+					_save_player_order()
+					card.flash_surge_source()
+					print("Surge Conduit Battlecry: all Constructs +%d persistent Charge!" % sc_gain)
+
+
+func _on_relay_surge_requested(candidates: Array) -> void:
+	var surge_candidates := candidates.filter(func(c): return _has_surge(c as UnitCard))
+	if surge_candidates.is_empty():
+		return
+	var target: UnitCard = surge_candidates[randi() % surge_candidates.size()]
+	print("Relay Node: triggering %s's Battlecry!" % target.data.display_name)
+	_fire_surge(target)
+
+
+func _has_surge(card: UnitCard) -> bool:
+	if card == null or card.data == null:
+		return false
+	match card.data.race:
+		RaceType.Race.MAGE:
+			return card.data.mage_effect in [
+				MageEffect.Effect.RUNECALLER, MageEffect.Effect.SPELL_POWER_SURGE,
+				MageEffect.Effect.SURGE_TRIGGER_UP]
+		RaceType.Race.HUMAN:
+			return card.data.human_effect in [
+				HumanEffect.Effect.GUN_UPGRADE_SURGE, HumanEffect.Effect.COST_REDUCTION_SURGE,
+				HumanEffect.Effect.WEAPON_LEVEL_SURGE]
+		RaceType.Race.GOBLIN:
+			return card.data.goblin_effect == GoblinEffect.Effect.STAT_BUDGET_SURGE
+		RaceType.Race.ELF:
+			return card.data.elf_effect in [ElfEffect.Effect.SURGE_ECHO_STAT, ElfEffect.Effect.SURGE_ECHO_UNIT]
+		RaceType.Race.COVENANT:
+			return card.data.covenant_effect in [CovenantEffect.Effect.OATH_BINDER, CovenantEffect.Effect.RITE_SAGE]
+		RaceType.Race.AZTEC:
+			return card.data.aztec_effect in [AztecEffect.Effect.SACRIFICE_SCOUT, AztecEffect.Effect.SUN_SEEKER]
+		RaceType.Race.MYCONID:
+			return card.data.myconid_effect == MyconidEffect.Effect.HYPHAE_SURGE
+		RaceType.Race.REAPER:
+			return card.data.reaper_effect in [ReaperEffect.Effect.DREAD_SEER, ReaperEffect.Effect.SHADE_STALKER]
+		RaceType.Race.CONSTRUCT:
+			return card.data.construct_effect in [
+				ConstructEffect.Effect.COIL_WEAVER, ConstructEffect.Effect.SURGE_CONDUIT]
+	return false
 
 
 func _get_surge_count() -> int:
@@ -1271,18 +1394,19 @@ func _build_all_shops_panel() -> void:
 	vbox.add_child(header)
 	vbox.add_child(HSeparator.new())
 
+	# -1 faction = always available; otherwise only shown when faction is active this run
 	var entries: Array = [
-		["Spells", Color(0.90, 0.75, 0.30), "_all_shops_open_spells"],
-		["Armory  (Humans)", Color(0.85, 0.60, 0.40), "_all_shops_open_humans"],
-		["Mage Shop", Color(0.60, 0.70, 1.00), "_all_shops_open_mages"],
-		["Workshop  (Goblins)", Color(0.55, 0.85, 0.40), "_all_shops_open_goblins"],
-		["Elf Shop", Color(0.60, 0.95, 0.70), "_all_shops_open_elves"],
-		["Covenant Shop", Color(0.90, 0.50, 0.50), "_all_shops_open_covenant"],
-		["The Temple  (Aztecs)", Color(1.00, 0.80, 0.15), "_all_shops_open_aztecs"],
-		["The Coilworks  (Constructs)", Color(0.65, 0.85, 1.00), "_all_shops_open_constructs"],
-		["The Rift  (Reapers)", Color(0.80, 0.50, 1.00), "_all_shops_open_reapers"],
-		["The Grove  (Myconids)", Color(0.45, 0.90, 0.50), "_all_shops_open_myconids"],
-		["The Sacred Grove  (Satyrs)", Color(1.00, 0.78, 0.32), "_all_shops_open_satyrs"],
+		["Spells", Color(0.90, 0.75, 0.30), "_all_shops_open_spells", -1],
+		["Armory  (Humans)", Color(0.85, 0.60, 0.40), "_all_shops_open_humans", RaceType.Race.HUMAN],
+		["Mage Shop", Color(0.60, 0.70, 1.00), "_all_shops_open_mages", RaceType.Race.MAGE],
+		["Workshop  (Goblins)", Color(0.55, 0.85, 0.40), "_all_shops_open_goblins", RaceType.Race.GOBLIN],
+		["Elf Shop", Color(0.60, 0.95, 0.70), "_all_shops_open_elves", RaceType.Race.ELF],
+		["Covenant Shop", Color(0.90, 0.50, 0.50), "_all_shops_open_covenant", RaceType.Race.COVENANT],
+		["The Temple  (Aztecs)", Color(1.00, 0.80, 0.15), "_all_shops_open_aztecs", RaceType.Race.AZTEC],
+		["The Coilworks  (Constructs)", Color(0.65, 0.85, 1.00), "_all_shops_open_constructs", RaceType.Race.CONSTRUCT],
+		["The Rift  (Reapers)", Color(0.80, 0.50, 1.00), "_all_shops_open_reapers", RaceType.Race.REAPER],
+		["The Grove  (Myconids)", Color(0.45, 0.90, 0.50), "_all_shops_open_myconids", RaceType.Race.MYCONID],
+		["The Sacred Grove  (Satyrs)", Color(1.00, 0.78, 0.32), "_all_shops_open_satyrs", RaceType.Race.SATYR],
 	]
 
 	for entry in entries:
@@ -1293,6 +1417,9 @@ func _build_all_shops_panel() -> void:
 		btn.add_theme_color_override("font_color", entry[1])
 		var method: String = entry[2]
 		btn.pressed.connect(Callable(self, method))
+		btn.set_meta("faction", entry[3])
+		var fid: int = entry[3]
+		btn.visible = fid == -1 or _active_factions.has(fid)
 		vbox.add_child(btn)
 
 	_all_shops_panel.custom_minimum_size = Vector2(246, 0)
@@ -1331,23 +1458,14 @@ func _refresh_all_shops_panel() -> void:
 		return
 	var vbox: VBoxContainer = _all_shops_panel.get_child(0).get_child(0)
 	var all_races := player_board.units.map(func(c: UnitCard): return c.data.race if is_instance_valid(c) and c.data != null else -1)
-	var btn_idx := 2  # skip header + separator
-	var needs_unit := [
-		true,                                          # Spells — always available
-		true,                                          # Armory — always available
-		all_races.has(RaceType.Race.MAGE),             # Mage Shop
-		true,                                          # Workshop — always (data shop)
-		true,                                          # Elf Shop
-		true,                                          # Covenant
-		true,                                          # Temple
-		true,                                          # Coilworks
-		true,                                          # Rift
-		true,                                          # Grove
-		true,                                          # Sacred Grove
-	]
-	for i in range(needs_unit.size()):
-		var btn: Button = vbox.get_child(btn_idx + i)
-		btn.disabled = not needs_unit[i]
+	for child in vbox.get_children():
+		if not (child is Button) or not child.has_meta("faction"):
+			continue
+		var fid: int = child.get_meta("faction")
+		if fid == RaceType.Race.MAGE:
+			child.disabled = not all_races.has(RaceType.Race.MAGE)
+		else:
+			child.disabled = false
 
 
 func _all_shops_open_spells() -> void:
@@ -1409,7 +1527,7 @@ func _all_shops_open_satyrs() -> void:
 
 
 func _on_goblin_upgrade_bought(key: String) -> void:
-	var cost: int = GoblinShop.UPGRADE_COSTS.get(key, 0)
+	var cost: int = GoblinShop.UPGRADE_COSTS.get(key, 0) + GameData.shop_cost_bonus
 	if _gold < cost:
 		return
 	_gold -= cost
@@ -1499,7 +1617,12 @@ func _on_aztec_upgrade_bought(key: String) -> void:
 			_aztec_shop_data.sacrifice_rate += 1
 			_aztec_shop_data.sacrifice_purchases += 1
 		"tribute":
-			_do_blood_tribute(false)
+			# Use a free Blood Font charge if available, otherwise consume the round flag
+			if _aztec_free_tributes_used < _aztec_free_tributes_available:
+				_aztec_free_tributes_used += 1
+				_do_blood_tribute(true)
+			else:
+				_do_blood_tribute(false)
 			return
 		"sacrifice":
 			_start_sacrifice_targeting(false)
@@ -1518,20 +1641,6 @@ func _on_construct_upgrade_bought(key: String) -> void:
 			_gold -= cost
 			_construct_shop_data.charge_cache += 3
 			_construct_shop_data.cache_purchases += 1
-		"block":
-			var cost := _construct_shop_data.block_cost()
-			if _gold < cost:
-				return
-			_gold -= cost
-			_construct_shop_data.block_per_charge += 1
-			_construct_shop_data.block_purchases += 1
-		"counter":
-			var cost := _construct_shop_data.counter_cost()
-			if _gold < cost:
-				return
-			_gold -= cost
-			_construct_shop_data.counter_per_charge += 1
-			_construct_shop_data.counter_purchases += 1
 		"recoil":
 			var cost := _construct_shop_data.recoil_cost()
 			if _gold < cost:
@@ -1678,17 +1787,42 @@ func _on_myconid_spore_distributed(card: UnitCard) -> void:
 func _do_blood_tribute(free_use: bool) -> void:
 	if not free_use and _aztec_tribute_used:
 		return
-	if _player_hp <= 5:
+	if not free_use and _player_hp <= 5:
 		return
 	var gold_gain := _aztec_shop_data.tribute_gold(_player_tier)
-	_player_hp -= 5
+	if not free_use:
+		_player_hp -= 5
 	_gold += gold_gain
 	if not free_use:
 		_aztec_tribute_used = true
+	# Devourer: each tribute counts toward run total
+	_aztec_shop_data.devourer_count += 1
+	_apply_devourer_bonus()
 	_save_resources()
 	_update_resource_bar()
 	_aztec_shop.refresh_gold(_gold, _player_hp, _aztec_tribute_used, _aztec_sacrifice_used)
-	print("Blood Tribute: -5 HP, +%dg (tier %d × rate %d)!" % [gold_gain, _player_tier, _aztec_shop_data.tribute_rate])
+	print("Blood Tribute: %s+%dg (tier %d × rate %d)!" % [
+		"" if free_use else "-5 HP, ", gold_gain, _player_tier, _aztec_shop_data.tribute_rate])
+
+
+func _apply_devourer_bonus() -> void:
+	for card in player_board.units + player_bench.units:
+		if is_instance_valid(card) and card.data != null \
+				and card.data.race == RaceType.Race.AZTEC \
+				and card.data.aztec_effect == AztecEffect.Effect.THE_DEVOURER:
+			card.current_attack += 4
+			card.current_health += 4
+			card.refresh_display()
+
+
+func _count_blood_font_charges() -> int:
+	var charges := 0
+	for card in player_board.units + player_bench.units:
+		if is_instance_valid(card) and card.data != null \
+				and card.data.race == RaceType.Race.AZTEC \
+				and card.data.aztec_effect == AztecEffect.Effect.BLOOD_FONT:
+			charges += 2 if card.is_radiant else 1
+	return charges
 
 
 func _start_sacrifice_targeting(free_use: bool) -> void:
@@ -1706,14 +1840,46 @@ func _start_sacrifice_targeting(free_use: bool) -> void:
 	_aztec_shop.close()
 	_start_targeting(null, valid, func(picked: UnitCard):
 		var is_aztec := picked.data.race == RaceType.Race.AZTEC
-		var gold_gain := picked.data.tier * _aztec_shop_data.sacrifice_rate * (2 if is_aztec else 1)
-		_gold += gold_gain
+		var is_anointed := is_aztec and picked.data.aztec_effect == AztecEffect.Effect.ANOINTED_VESSEL
+		var gold_gain := picked.data.tier * _aztec_shop_data.sacrifice_rate
+		if is_aztec:
+			gold_gain *= 2
+		if is_anointed:
+			gold_gain *= 2
+		var sac_atk := picked.current_attack
+		var sac_hp := picked.current_health
 		if not free_use:
 			_aztec_sacrifice_used = true
 		_remove_unit_card(picked)
+		# Devourer: +4/+4 per sacrifice, track run count
+		_aztec_shop_data.devourer_count += 1
+		_apply_devourer_bonus()
+		# Blood Witness: +2/+2 (Radiant: +4/+4) on any friendly board/bench unit with this effect
+		for card in player_board.units + player_bench.units:
+			if is_instance_valid(card) and card.data != null \
+					and card.data.race == RaceType.Race.AZTEC \
+					and card.data.aztec_effect == AztecEffect.Effect.BLOOD_WITNESS:
+				var gain := 4 if card.is_radiant else 2
+				card.current_attack += gain
+				card.current_health += gain
+				card.refresh_display()
+		# Blood Feast: gain sacrificed unit's ATK and HP
+		for card in player_board.units + player_bench.units:
+			if is_instance_valid(card) and card.data != null \
+					and card.data.race == RaceType.Race.AZTEC \
+					and card.data.aztec_effect == AztecEffect.Effect.BLOOD_FEAST:
+				card.current_attack += sac_atk
+				card.current_health += sac_hp
+				card.refresh_display()
+		_gold += gold_gain
 		_save_resources()
 		_update_resource_bar()
-		print("Sacrifice: +%dg for %s (tier %d%s)!" % [gold_gain, picked.data.display_name, picked.data.tier, " (Aztec x2)" if is_aztec else ""])
+		_save_player_order()
+		_save_bench()
+		print("Sacrifice: +%dg for %s (tier %d%s%s)!" % [
+			gold_gain, picked.data.display_name, picked.data.tier,
+			" (Aztec x2)" if is_aztec else "",
+			" (Anointed x2)" if is_anointed else ""])
 	)
 
 
@@ -2205,7 +2371,7 @@ func _handle_sell(sold_card: UnitCard) -> void:
 	_save_sell_counter()
 	_update_sell_label()
 
-	if _sell_counter >= 3:
+	if _sell_counter >= GameData.sell_threshold:
 		_sell_counter = 0
 		_save_sell_counter()
 		_update_sell_label()
@@ -2214,7 +2380,7 @@ func _handle_sell(sold_card: UnitCard) -> void:
 
 
 func _update_sell_label() -> void:
-	sell_label.text = "SELL  —  %d / 3  →  Discovery" % _sell_counter
+	sell_label.text = "SELL  —  %d / %d  →  Discovery" % [_sell_counter, GameData.sell_threshold]
 
 
 # ── Resource bar ──────────────────────────────────────────────────────────────
@@ -2360,6 +2526,28 @@ func _load_sell_counter() -> void:
 	file.close()
 	if parsed != null:
 		_sell_counter = int(parsed)
+
+
+func _initialize_active_factions() -> void:
+	if FileAccess.file_exists(FACTIONS_SAVE_PATH):
+		var file := FileAccess.open(FACTIONS_SAVE_PATH, FileAccess.READ)
+		if file:
+			var parsed = JSON.parse_string(file.get_as_text())
+			file.close()
+			if parsed is Array and not parsed.is_empty():
+				_active_factions = parsed.map(func(v): return int(v))
+				return
+	var pool: Array = ALL_PLAYABLE_FACTIONS.duplicate()
+	pool.shuffle()
+	_active_factions = pool.slice(0, 6)
+	_save_active_factions()
+
+
+func _save_active_factions() -> void:
+	var file := FileAccess.open(FACTIONS_SAVE_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(_active_factions))
+		file.close()
 
 
 func _save_round() -> void:
@@ -2668,15 +2856,25 @@ func _remove_support_card() -> UnitCard:
 
 
 func _on_combat_ended(damage: int) -> void:
+	# Gauntlet fights bypass all normal round logic
+	if GameData.gauntlet_mode:
+		_on_gauntlet_fight_ended(damage <= 0)
+		return
+
 	_aztec_tribute_used = false
 	_aztec_sacrifice_used = false
+	_aztec_free_tributes_used = 0
+	_aztec_free_tributes_available = _count_blood_font_charges()
 
-	# Persist post-combat construct_charge and clear depowered
+	# Restore persistent charge, clear combat state, run Accumulator
 	var construct_post: Dictionary = {}
 	for card: UnitCard in player_board.units:
 		if is_instance_valid(card) and not card.is_dead and card.data != null \
 				and card.data.race == RaceType.Race.CONSTRUCT:
+			card.construct_charge = card.construct_persistent_charge
 			card.construct_depowered = false
+			card.construct_reignited = false
+			card.construct_protocol_used = false
 			var key := card.data.resource_path
 			if not construct_post.has(key):
 				construct_post[key] = []
@@ -2685,6 +2883,17 @@ func _on_combat_ended(damage: int) -> void:
 		if is_instance_valid(card) and card.data != null \
 				and card.data.race == RaceType.Race.CONSTRUCT:
 			card.construct_depowered = false
+			card.construct_reignited = false
+			card.construct_protocol_used = false
+	# Accumulator: +3 persistent charge at end of each round
+	for card: UnitCard in player_board.units + player_bench.units:
+		if is_instance_valid(card) and card.data != null \
+				and card.data.race == RaceType.Race.CONSTRUCT \
+				and card.data.construct_effect == ConstructEffect.Effect.ACCUMULATOR:
+			var acc_gain := 6 if card.is_radiant else 3
+			card.construct_charge += acc_gain
+			card.refresh_display()
+			print("%s Accumulator: +%d persistent Charge (now %d)!" % [card.data.display_name, acc_gain, card.construct_charge])
 	# Update board template so rebuilt cards inherit post-combat charge
 	var path_idx: Dictionary = {}
 	for entry in _board_template:
@@ -2751,6 +2960,28 @@ func _on_combat_ended(damage: int) -> void:
 				else:
 					entry["myconid_spores"] = 0
 
+	# Roll back combat-only buffs (Overload Core etc.) and sync permanent gains to template
+	for card: UnitCard in player_board.units:
+		if not is_instance_valid(card) or card.is_dead or card.data == null:
+			continue
+		if card.combat_temp_atk != 0 or card.combat_temp_hp != 0:
+			card.current_attack = maxi(1, card.current_attack - card.combat_temp_atk)
+			card.current_health = maxi(1, card.current_health - card.combat_temp_hp)
+			card.combat_temp_atk = 0
+			card.combat_temp_hp = 0
+			card.refresh_display()
+	for entry in _board_template:
+		var ref = entry.get("card_ref")
+		if ref == null or not is_instance_valid(ref):
+			continue
+		var ref_card: UnitCard = ref as UnitCard
+		if ref_card.is_dead:
+			continue
+		var gain: Vector2i = combat_manager.pending_permanent_stats.get(ref_card, Vector2i(0, 0))
+		if gain.x != 0 or gain.y != 0:
+			entry["atk"] = int(entry["atk"]) + gain.x
+			entry["hp"] = int(entry["hp"]) + gain.y
+
 	# Apply pending rewards from death knells that fire during combat
 	if combat_manager.pending_gold_reward > 0:
 		_gold += combat_manager.pending_gold_reward
@@ -2760,15 +2991,475 @@ func _on_combat_ended(damage: int) -> void:
 		print("Warden: HSP permanently +%d!" % combat_manager.pending_hsp_bonus)
 
 	if damage <= 0:
+		# Victory after battle 25 (round index 24 because round increments post-discovery)
+		if _round == GameData.MAX_BATTLES - 1:
+			_save_resources()
+			_update_resource_bar()
+			_show_victory_screen()
+			return
 		_save_resources()
 		_update_resource_bar()
+		_sync_to_slot()
 		return
 	_player_hp -= damage
 	_save_resources()
 	_update_resource_bar()
+	_sync_to_slot()
 	if _player_hp <= 0:
 		result_banner.text = "GAME OVER  (HP: %d)" % _player_hp
 		continue_button.visible = false
+		GameData.add_history({
+			"result": "defeat",
+			"battles": _round + 1,
+			"date": Time.get_date_string_from_system(),
+			"unit_names": _collect_board_unit_names(),
+		})
+		if GameData.current_slot >= 0:
+			GameData.clear_slot(GameData.current_slot)
+
+
+# ── Slot bridge ───────────────────────────────────────────────────────────────
+
+func _collect_board_unit_names() -> Array:
+	var names: Array = []
+	for card: UnitCard in player_board.units:
+		if is_instance_valid(card) and card.data != null:
+			names.append(card.data.display_name)
+	return names
+
+
+func _collect_slot_data() -> Dictionary:
+	var board_dicts: Array = []
+	for card: UnitCard in player_board.units:
+		if is_instance_valid(card) and card.data != null:
+			board_dicts.append(_card_to_dict(card))
+	var bench_dicts: Array = []
+	for card: UnitCard in player_bench.units:
+		if is_instance_valid(card) and card.data != null:
+			bench_dicts.append(_card_to_dict(card))
+	return {
+		"round": _round,
+		"gold": _gold,
+		"gold_income": _gold_income,
+		"lifetime_gold": _lifetime_gold,
+		"tier": _player_tier,
+		"player_hp": _player_hp,
+		"asp": _asp,
+		"hsp": _hsp,
+		"sell_counter": _sell_counter,
+		"support_unlocked": _support_slot_unlocked,
+		"support_card": _card_to_dict(_support_card) if _support_card != null else {},
+		"board": board_dicts,
+		"bench": bench_dicts,
+		"unit_names": board_dicts.map(func(d):
+			var ud = load(d.get("path", ""))
+			return ud.display_name if ud != null else "?"),
+		"active_factions": _active_factions,
+		"goblin_shop":    _goblin_shop_data.to_dict()   if _goblin_shop_data   != null else {},
+		"elf_shop":       _elf_shop_data.to_dict()      if _elf_shop_data      != null else {},
+		"covenant_shop":  _covenant_shop_data.to_dict() if _covenant_shop_data != null else {},
+		"aztec_shop":     _aztec_shop_data.to_dict()    if _aztec_shop_data    != null else {},
+		"aztec_tribute_used":   _aztec_tribute_used,
+		"aztec_sacrifice_used": _aztec_sacrifice_used,
+		"construct_shop": _construct_shop_data.to_dict() if _construct_shop_data != null else {},
+		"reaper_shop":    _reaper_shop_data.to_dict()   if _reaper_shop_data   != null else {},
+		"myconid_shop":   _myconid_shop_data.to_dict()  if _myconid_shop_data  != null else {},
+		"satyr_shop":     _satyr_shop_data.to_dict()    if _satyr_shop_data    != null else {},
+	}
+
+
+func _write_slot_to_files(slot: Dictionary) -> void:
+	var f: FileAccess
+	f = FileAccess.open(ORDER_SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(slot.get("board", [])))
+		f.close()
+	f = FileAccess.open(BENCH_SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(slot.get("bench", [])))
+		f.close()
+	f = FileAccess.open(ROUND_SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(slot.get("round", 0)))
+		f.close()
+	f = FileAccess.open(SELL_COUNTER_SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(slot.get("sell_counter", 0)))
+		f.close()
+	f = FileAccess.open(FACTIONS_SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(slot.get("active_factions", [])))
+		f.close()
+	var res := {
+		"gold": slot.get("gold", 0),
+		"gold_income": slot.get("gold_income", 2),
+		"lifetime_gold": slot.get("lifetime_gold", 0),
+		"tier": slot.get("tier", 1),
+		"player_hp": slot.get("player_hp", 100),
+		"asp": slot.get("asp", 1),
+		"hsp": slot.get("hsp", 1),
+		"support_unlocked": slot.get("support_unlocked", false),
+		"support_card": slot.get("support_card", {}),
+		"goblin_shop":    slot.get("goblin_shop", {}),
+		"elf_shop":       slot.get("elf_shop", {}),
+		"covenant_shop":  slot.get("covenant_shop", {}),
+		"aztec_shop":     slot.get("aztec_shop", {}),
+		"aztec_tribute_used":   slot.get("aztec_tribute_used", false),
+		"aztec_sacrifice_used": slot.get("aztec_sacrifice_used", false),
+		"construct_shop": slot.get("construct_shop", {}),
+		"reaper_shop":    slot.get("reaper_shop", {}),
+		"myconid_shop":   slot.get("myconid_shop", {}),
+		"satyr_shop":     slot.get("satyr_shop", {}),
+	}
+	f = FileAccess.open(RESOURCES_SAVE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(res))
+		f.close()
+
+
+func _sync_to_slot() -> void:
+	if GameData.current_slot < 0 or GameData.gauntlet_mode:
+		return
+	GameData.set_slot(GameData.current_slot, _collect_slot_data())
+
+
+func _return_to_menu() -> void:
+	_sync_to_slot()
+	GameData.gauntlet_mode = false
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+
+# ── Victory screen ────────────────────────────────────────────────────────────
+
+func _show_victory_screen() -> void:
+	var slot_data := _collect_slot_data()
+	GameData.record_winning_run(slot_data)
+	GameData.unlock_next_difficulty()
+	GameData.add_history({
+		"result": "victory",
+		"battles": GameData.MAX_BATTLES,
+		"date": Time.get_date_string_from_system(),
+		"unit_names": slot_data.get("unit_names", []),
+	})
+	if GameData.current_slot >= 0:
+		GameData.clear_slot(GameData.current_slot)
+
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.04, 0.04, 0.08, 0.92)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.z_index = 150
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var center := VBoxContainer.new()
+	center.set_anchors_preset(Control.PRESET_CENTER)
+	center.add_theme_constant_override("separation", 18)
+	center.z_index = 151
+	add_child(center)
+
+	var title_lbl := Label.new()
+	title_lbl.text = "VICTORY!"
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.add_theme_font_size_override("font_size", 64)
+	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.20))
+	center.add_child(title_lbl)
+
+	var sub_lbl := Label.new()
+	sub_lbl.text = "You survived all %d battles!" % GameData.MAX_BATTLES
+	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub_lbl.add_theme_font_size_override("font_size", 20)
+	sub_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+	center.add_child(sub_lbl)
+
+	var units_lbl := Label.new()
+	units_lbl.text = "Your board: " + ", ".join(slot_data.get("unit_names", []))
+	units_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	units_lbl.add_theme_color_override("font_color", Color(0.65, 0.85, 0.65))
+	units_lbl.add_theme_font_size_override("font_size", 14)
+	center.add_child(units_lbl)
+
+	center.add_child(HSeparator.new())
+
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 16)
+	center.add_child(btns)
+
+	if GameData.has_gauntlet_data():
+		var gauntlet_btn := Button.new()
+		gauntlet_btn.text = "Challenge Gauntlet"
+		gauntlet_btn.custom_minimum_size = Vector2(220, 48)
+		gauntlet_btn.add_theme_color_override("font_color", Color(1.0, 0.80, 0.20))
+		gauntlet_btn.pressed.connect(func():
+			GameData.begin_gauntlet(slot_data)
+			GameData.current_slot = -1
+			get_tree().change_scene_to_file("res://scenes/combat_arena.tscn"))
+		btns.add_child(gauntlet_btn)
+
+	var menu_btn := Button.new()
+	menu_btn.text = "Return to Menu"
+	menu_btn.custom_minimum_size = Vector2(180, 48)
+	menu_btn.pressed.connect(func():
+		GameData.gauntlet_mode = false
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn"))
+	btns.add_child(menu_btn)
+
+
+# ── Gauntlet mode ─────────────────────────────────────────────────────────────
+
+func _enter_gauntlet_mode() -> void:
+	# Hide interactive UI elements that don't apply in gauntlet
+	_all_shops_btn.visible = false
+	if tier_upgrade_button:
+		tier_upgrade_button.visible = false
+	fight_button.visible = false
+	continue_button.visible = false
+
+	# Restore player board from gauntlet_player_slot (full shop data too)
+	_write_slot_to_files(GameData.gauntlet_player_slot)
+	_load_resources()
+	_active_factions = (GameData.gauntlet_player_slot.get("active_factions", []) as Array).map(
+		func(v): return int(v))
+	player_board.clear_units()
+	for d in GameData.gauntlet_player_slot.get("board", []):
+		var card: UnitCard = UnitCardScene.instantiate()
+		player_board.add_unit(card)
+		_apply_card_entry(card, d)
+
+	_reload_gauntlet_enemy()
+	_show_gauntlet_fight_start()
+
+
+func _reload_gauntlet_enemy() -> void:
+	enemy_board.clear_units()
+	for d in GameData.get_gauntlet_opponent_board():
+		var card: UnitCard = UnitCardScene.instantiate()
+		enemy_board.add_unit(card)
+		_apply_enemy_card_dict(card, d)
+	_load_enemy_shops_from_slot(GameData.get_gauntlet_opponent_slot())
+
+
+func _load_enemy_shops_from_slot(slot: Dictionary) -> void:
+	var gs = slot.get("goblin_shop", {})
+	if gs is Dictionary and not gs.is_empty():
+		_enemy_goblin_shop_data = GoblinShopData.new()
+		_enemy_goblin_shop_data.from_dict(gs)
+	else:
+		_enemy_goblin_shop_data = GoblinShopData.new()
+	var es = slot.get("elf_shop", {})
+	if es is Dictionary and not es.is_empty():
+		_enemy_elf_shop_data = ElfShopData.new()
+		_enemy_elf_shop_data.from_dict(es)
+	else:
+		_enemy_elf_shop_data = ElfShopData.new()
+	var cs = slot.get("covenant_shop", {})
+	if cs is Dictionary and not cs.is_empty():
+		_enemy_covenant_shop_data = CovenantShopData.new()
+		_enemy_covenant_shop_data.from_dict(cs)
+	else:
+		_enemy_covenant_shop_data = CovenantShopData.new()
+	var az = slot.get("aztec_shop", {})
+	if az is Dictionary and not az.is_empty():
+		_enemy_aztec_shop_data = AztecShopData.new()
+		_enemy_aztec_shop_data.from_dict(az)
+	else:
+		_enemy_aztec_shop_data = AztecShopData.new()
+	_enemy_aztec_gold = int(slot.get("gold", 0))
+	var csd = slot.get("construct_shop", {})
+	if csd is Dictionary and not csd.is_empty():
+		_enemy_construct_shop_data = ConstructShopData.new()
+		_enemy_construct_shop_data.from_dict(csd)
+	else:
+		_enemy_construct_shop_data = ConstructShopData.new()
+	var rsd = slot.get("reaper_shop", {})
+	if rsd is Dictionary and not rsd.is_empty():
+		_enemy_reaper_shop_data = ReaperShopData.new()
+		_enemy_reaper_shop_data.from_dict(rsd)
+	else:
+		_enemy_reaper_shop_data = ReaperShopData.new()
+	var msd = slot.get("myconid_shop", {})
+	if msd is Dictionary and not msd.is_empty():
+		_enemy_myconid_shop_data = MyconidShopData.new()
+		_enemy_myconid_shop_data.from_dict(msd)
+	else:
+		_enemy_myconid_shop_data = MyconidShopData.new()
+	var ssd = slot.get("satyr_shop", {})
+	if ssd is Dictionary and not ssd.is_empty():
+		_enemy_satyr_shop_data = SatyrShopData.new()
+		_enemy_satyr_shop_data.from_dict(ssd)
+	else:
+		_enemy_satyr_shop_data = SatyrShopData.new()
+
+
+func _reload_gauntlet_boards() -> void:
+	player_board.clear_units()
+	for d in GameData.gauntlet_player_slot.get("board", []):
+		var card: UnitCard = UnitCardScene.instantiate()
+		player_board.add_unit(card)
+		_apply_card_entry(card, d)
+	_reload_gauntlet_enemy()
+
+
+func _apply_enemy_card_dict(card: UnitCard, d: Dictionary) -> void:
+	var path: String = d.get("path", "")
+	var unit_data: UnitData = load(path)
+	if unit_data == null:
+		return
+	card.initialize(unit_data)
+	card.current_attack   = int(d.get("atk", unit_data.base_attack))
+	card.current_health   = int(d.get("hp",  unit_data.base_health))
+	card.current_keywords = int(d.get("kw",  unit_data.keywords))
+	card.is_radiant       = bool(d.get("radiant", false))
+	var wlevel := int(d.get("weapon_level", -1))
+	if wlevel >= 0 and card.equipped_weapon != null:
+		card.equipped_weapon.level = wlevel
+	var btype  := int(d.get("backpack_type", -1))
+	var blevel := int(d.get("backpack_level", -1))
+	if btype >= 0 and WEAPON_TEMPLATES.has(btype):
+		card.backpack_weapon = WEAPON_TEMPLATES[btype].duplicate()
+		card.backpack_weapon.level = blevel
+	var spell_path: String = d.get("spell_path", "")
+	if spell_path != "":
+		var sd: SpellData = load(spell_path)
+		if sd != null:
+			card.equipped_spell = SpellInstance.new(sd)
+			var trig_dict = d.get("spell_triggers", {})
+			if trig_dict is Dictionary:
+				for k in trig_dict:
+					card.equipped_spell.triggers[int(k)] = int(trig_dict[k])
+	card.construct_charge = int(d.get("construct_charge", 0))
+	card.myconid_spores   = int(d.get("myconid_spores",   0))
+	card.refresh_display()
+
+
+func _show_gauntlet_fight_start() -> void:
+	var stage_name := "Last Winning Board" if GameData.gauntlet_stage == 0 else "Champion Board"
+	var opp_names: Array = []
+	for d in GameData.get_gauntlet_opponent_board():
+		if d is Dictionary:
+			var ud = load(d.get("path", ""))
+			if ud != null:
+				opp_names.append(ud.display_name)
+
+	var overlay := _gauntlet_info_overlay(
+		"GAUNTLET  —  Stage %d of %d" % [GameData.gauntlet_stage + 1, 2 if GameData.has_champion() else 1],
+		"vs  %s\n%s\n\nBest of 3  ·  Score: %d – %d" % [
+			stage_name,
+			", ".join(opp_names),
+			GameData.gauntlet_player_wins, GameData.gauntlet_enemy_wins],
+		"Start Fight",
+		func():
+			fight_button.visible = true
+			player_board.is_locked = false)
+	add_child(overlay)
+
+
+func _on_gauntlet_fight_ended(player_won: bool) -> void:
+	player_board.is_locked = true
+	fight_button.visible   = false
+
+	if player_won:
+		GameData.gauntlet_player_wins += 1
+	else:
+		GameData.gauntlet_enemy_wins += 1
+
+	var p := GameData.gauntlet_player_wins
+	var e := GameData.gauntlet_enemy_wins
+	var stage_decided := p >= 2 or e >= 2
+
+	if not stage_decided:
+		# Another fight needed — reload boards and show score
+		_reload_gauntlet_boards()
+		var overlay := _gauntlet_info_overlay(
+			"Fight result: %s" % ("YOU WIN" if player_won else "YOU LOSE"),
+			"Score: %d – %d  (first to 2 wins the stage)" % [p, e],
+			"Next Fight",
+			func():
+				fight_button.visible = true
+				player_board.is_locked = false)
+		add_child(overlay)
+		return
+
+	# Stage decided
+	if not player_won or e >= 2:
+		# Player lost the stage → gauntlet over
+		_show_gauntlet_end(false)
+		return
+
+	# Player won the stage
+	if GameData.gauntlet_stage == 0:
+		if GameData.has_champion():
+			# Advance to stage 2 vs champion
+			GameData.gauntlet_stage       = 1
+			GameData.gauntlet_player_wins = 0
+			GameData.gauntlet_enemy_wins  = 0
+			_reload_gauntlet_boards()
+			var overlay := _gauntlet_info_overlay(
+				"Stage 1 Clear!",
+				"You defeated the Last Winning Board.\nNow face the Champion!",
+				"Continue to Stage 2",
+				func():
+					fight_button.visible = true
+					player_board.is_locked = false)
+			add_child(overlay)
+		else:
+			# No champion yet — player IS the new champion
+			GameData.record_champion(GameData.gauntlet_player_slot)
+			_show_gauntlet_end(true)
+	else:
+		# Player won stage 2 — new champion!
+		GameData.record_champion(GameData.gauntlet_player_slot)
+		_show_gauntlet_end(true)
+
+
+func _show_gauntlet_end(player_won: bool) -> void:
+	var title := "NEW CHAMPION!" if player_won else "GAUNTLET FAILED"
+	var msg   := ("Your board has been recorded as the new Champion!" if player_won
+		else "Better luck next time.")
+	var overlay := _gauntlet_info_overlay(title, msg, "Return to Menu",
+		func(): get_tree().change_scene_to_file("res://scenes/main_menu.tscn"))
+	add_child(overlay)
+
+
+func _gauntlet_info_overlay(title: String, body: String,
+		btn_label: String, on_btn: Callable) -> Control:
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.04, 0.04, 0.08, 0.88)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.z_index = 160
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_CENTER)
+	vb.add_theme_constant_override("separation", 16)
+	vb.z_index = 161
+	overlay.add_child(vb)
+
+	var t := Label.new()
+	t.text = title
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.add_theme_font_size_override("font_size", 32)
+	t.add_theme_color_override("font_color", Color(1.0, 0.85, 0.20))
+	vb.add_child(t)
+
+	var b := Label.new()
+	b.text = body
+	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.add_theme_font_size_override("font_size", 15)
+	b.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+	b.autowrap_mode = TextServer.AUTOWRAP_WORD
+	b.custom_minimum_size = Vector2(480, 0)
+	vb.add_child(b)
+
+	var btn := Button.new()
+	btn.text = btn_label
+	btn.custom_minimum_size = Vector2(200, 48)
+	btn.pressed.connect(func():
+		overlay.queue_free()
+		on_btn.call())
+	vb.add_child(btn)
+
+	return overlay
 
 
 # ── Drag handling ─────────────────────────────────────────────────────────────
@@ -3029,6 +3720,7 @@ func _on_fight_pressed() -> void:
 				"equipped_spell": card.equipped_spell,
 				"construct_charge": card.construct_charge,
 				"myconid_spores": card.myconid_spores,
+				"card_ref": card,
 			})
 	player_board.is_locked = true
 	var active_spells: Array = []
@@ -3049,9 +3741,12 @@ func _on_fight_pressed() -> void:
 	combat_manager.covenant_shop_data = _covenant_shop_data
 	combat_manager.aztec_shop_data = _aztec_shop_data
 	combat_manager.aztec_gold = _gold
+	combat_manager.aztec_player_hp = _player_hp
+	combat_manager.aztec_bench_count = player_bench.units.filter(func(u): return is_instance_valid(u) and u.data != null).size()
 	combat_manager.construct_shop_data = _construct_shop_data
 	combat_manager.reaper_shop_data = _reaper_shop_data
 	combat_manager.myconid_shop_data = _myconid_shop_data
+	combat_manager.satyr_shop_data = _satyr_shop_data
 	combat_manager.enemy_goblin_shop_data = _enemy_goblin_shop_data
 	combat_manager.enemy_elf_shop_data = _enemy_elf_shop_data
 	combat_manager.enemy_covenant_shop_data = _enemy_covenant_shop_data
@@ -3060,4 +3755,5 @@ func _on_fight_pressed() -> void:
 	combat_manager.enemy_construct_shop_data = _enemy_construct_shop_data
 	combat_manager.enemy_reaper_shop_data = _enemy_reaper_shop_data
 	combat_manager.enemy_myconid_shop_data = _enemy_myconid_shop_data
+	combat_manager.enemy_satyr_shop_data = _enemy_satyr_shop_data
 	combat_manager.start_combat()

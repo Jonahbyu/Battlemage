@@ -24,7 +24,11 @@ var mage_effect_level: int = 1  # used by upgradeable passive effects (e.g. Coin
 
 # Construct charge — persists between combats
 var construct_charge: int = 0
+var construct_persistent_charge: int = 0  # snapshot before SOC; restored after combat
+var construct_peak_charge: int = 0        # max charge reached this combat (Arc Coil)
 var construct_depowered: bool = false
+var construct_reignited: bool = false
+var construct_protocol_used: bool = false
 
 # Myconid spores — persists between combats
 var myconid_spores: int = 0
@@ -37,6 +41,8 @@ var combat_gun_damage: int = 0
 var combat_shots: int = 0
 var combat_shot_bonus: int = 0   # Gunner: added per shot
 var combat_bonus_damage: int = 0 # Commander aura etc.
+var combat_temp_atk: int = 0     # rolled back at end of combat (Overload Core etc.)
+var combat_temp_hp: int = 0
 
 @onready var card_background: Panel = $CardBackground
 @onready var attack_label: Label = $AttackBadge/AttackLabel
@@ -373,27 +379,75 @@ func _get_effect_description() -> String:
 		return ""
 	if data.race == RaceType.Race.AZTEC:
 		match data.aztec_effect:
-			AztecEffect.Effect.SUN_PRIEST:
-				return "Click ⚙ to open The Temple shop"
-			AztecEffect.Effect.KILL_GOLD:
-				return "On Kill: +%d gold" % m
-			AztecEffect.Effect.BLESSING_AURA:
-				return "Aura: +%d to your blessing rate while alive" % m
-			AztecEffect.Effect.TRIBUTE_SURGE:
-				return "Surge: use Blood Tribute without consuming the round use"
-			AztecEffect.Effect.SACRIFICE_SURGE:
-				return "Surge: sacrifice a unit for 2× gold"
-			AztecEffect.Effect.WARDEN_AURA:
-				return "Start of Combat: all friendly Aztecs get +2/+2 flat"
-			AztecEffect.Effect.JAGUAR_BONUS:
-				return "Start of Combat: gains +1 ATK per 5 gold you have saved (bonus on top of blessing)"
-			AztecEffect.Effect.HIGH_PRIEST_AURA:
-				return "Aura: your blessing rate is doubled while alive"
+			AztecEffect.Effect.GILDED_MARTYR:
+				return "Death Knell: deal %d damage per gold held to a random enemy" % m
+			AztecEffect.Effect.BLOOD_WITNESS:
+				return "When any friendly is sacrificed: permanently +%d/+%d" % [m * 2, m * 2]
+			AztecEffect.Effect.TRIBUTE_HUNTER:
+				return "On Kill: gain +%d gold" % m
+			AztecEffect.Effect.ANOINTED_VESSEL:
+				return "Gives %dx gold when sacrificed (stacks with race bonus)" % (m + 1)
+			AztecEffect.Effect.SUN_IDOL:
+				return "Aura: +%d blessing rate while alive" % m
+			AztecEffect.Effect.BLOOD_FEAST:
+				return "When any friendly is sacrificed: permanently gain its ATK+HP"
+			AztecEffect.Effect.SACRIFICE_SCOUT:
+				return "Surge: sacrifice a target friendly unit (doesn't consume the round flag)"
+			AztecEffect.Effect.VAULT_KEEPER:
+				return "End of combat turn: gain +1 gold per bench unit"
+			AztecEffect.Effect.GOLD_EFFIGY:
+				return "Death Knell: deal damage equal to gold held to a random enemy"
+			AztecEffect.Effect.TITHE_WARDEN:
+				return "Aura: all friendly units gain +1 gold on kill"
+			AztecEffect.Effect.SUN_SEEKER:
+				return "Surge: if you own another Aztec, discover a random Aztec unit"
+			AztecEffect.Effect.THE_DEVOURER:
+				return "Permanently gains +%d/+%d for each sacrifice or tribute this run" % [m * 4, m * 4]
+			AztecEffect.Effect.BLOOD_FONT:
+				return "Off-board: grants %d free Blood Tribute(s) per shop phase" % m
+			AztecEffect.Effect.GOLDEN_SOVEREIGN:
+				return "Aura: doubles gold count for blessing calculation while alive"
+			AztecEffect.Effect.THE_STARVED:
+				return "Gains +%d/+%d per player HP missing at combat start; receives full blessing" % [m, m]
+			AztecEffect.Effect.SUN_HERALD:
+				return "Death Knell: summon a Gold Idol token (1/1 Aztec, 2× blessing)"
 		return ""
 	if data.race == RaceType.Race.CONSTRUCT:
 		match data.construct_effect:
 			ConstructEffect.Effect.WINDER:
 				return "Click ⚙ to open The Coilworks. Start of Combat: adjacent Constructs gain +%d Charge." % (m * 2)
+			ConstructEffect.Effect.CAPACITOR:
+				return "Start of Combat: gain 1 Charge per friendly Construct in play." if not is_radiant else "Start of Combat: gain 2 Charge per friendly Construct in play."
+			ConstructEffect.Effect.VOLT_STRIKER:
+				return "Counter Strike: each spent Charge deals 2 damage back instead of 1." if not is_radiant else "Counter Strike: each spent Charge deals 4 damage back instead of 1."
+			ConstructEffect.Effect.REIGNITER:
+				return "When Depowered: regain %d Charge once per combat." % (m * 3)
+			ConstructEffect.Effect.COIL_WEAVER:
+				return "Battlecry: all Constructs gain +%d permanent SOC Charge." % m
+			ConstructEffect.Effect.IRON_SENTINEL:
+				return "When attacked: gain %d Charge." % (m * 3)
+			ConstructEffect.Effect.ARC_COIL:
+				return "Death Knell: give this unit's peak Charge from this combat to a random adjacent Construct."
+			ConstructEffect.Effect.ACCUMULATOR:
+				return "End of round: gain +%d persistent Charge." % (m * 3)
+			ConstructEffect.Effect.DISCHARGE_ENGINE:
+				return "When any friendly Construct loses a Charge point, your board gains +%d ATK." % m
+			ConstructEffect.Effect.SURGE_CONDUIT:
+				return "Battlecry: give all friendly Constructs +%d persistent Charge." % (m * 3)
+			ConstructEffect.Effect.CHARGE_SIPHON:
+				return "When another friendly Construct loses Charge, permanently gain +%d/+%d for each point lost." % [m, m]
+			ConstructEffect.Effect.OVERLOAD_CORE:
+				return "Aura: when a friendly Construct is Depowered, give it +%d/+%d (this combat only)." % [m * 10, m * 10]
+			ConstructEffect.Effect.MELTDOWN:
+				return "Death Knell: give all Constructs +%d Charge and give your entire board +%d/+%d permanently." % [m * 3, m * 3, m * 3]
+			ConstructEffect.Effect.RELAY_NODE:
+				return "Death Knell: trigger the Battlecry of a random adjacent unit."
+			ConstructEffect.Effect.GRAND_CAPACITOR:
+				return "Start of Combat: gain 1 Charge for every Charge point among all friendly Constructs." if not is_radiant else "Start of Combat: gain 2 Charge for every Charge point among all friendly Constructs."
+			ConstructEffect.Effect.RECHARGE_PROTOCOL:
+				return "Aura: the first time each friendly Construct would be Depowered this combat, it gains +%d Charge instead." % (m * 5)
+			ConstructEffect.Effect.FISSION_CORE:
+				return "Death Knell: give all friendly units +%d/+%d permanently for each point of peak Charge this unit reached this combat." % [m, m]
 		return ""
 	if data.race == RaceType.Race.REAPER:
 		match data.reaper_effect:
@@ -530,6 +584,51 @@ func _get_effect_description() -> String:
 				return "Avenge %d: Bond %d random friendly unit(s)" % [3 - m, m]
 			CovenantEffect.Effect.RITE_SPAWNER:
 				return "On Attack: Summon and Bond %d Covenantling(s) (2/2). %s attacks first. If %s die, go Berserk." % [m, ("Each" if is_radiant else "It"), ("they" if is_radiant else "it")]
+		return ""
+	if data.race == RaceType.Race.SATYR:
+		match data.satyr_effect:
+			SatyrEffect.Effect.CRIMSON:
+				return "On death: deal Crimson damage to a random enemy"
+			SatyrEffect.Effect.GOLD:
+				return "Aura: give all allies +ATK while alive"
+			SatyrEffect.Effect.SILVER:
+				return "Targets the highest-HP enemy and deals bonus damage"
+			SatyrEffect.Effect.GREEN:
+				return "Death Knell: pass a stat-bonus chain to the next unit"
+			SatyrEffect.Effect.BLACK:
+				return "On hit: apply an ATK debuff to a random enemy"
+			SatyrEffect.Effect.CRIMSON_T2:
+				return "Reborn. Death Knell: permanently +1 Crimson death damage"
+			SatyrEffect.Effect.GOLD_T2:
+				return "Death Knell: +5%% Prismatic token summon chance"
+			SatyrEffect.Effect.SILVER_T2:
+				return "Divine Shield, Windfury. Always targets the highest-HP enemy"
+			SatyrEffect.Effect.GREEN_T2:
+				return "Death Knell: summon 2 Green Satyrs"
+			SatyrEffect.Effect.BLACK_T2:
+				return "End of turn: permanently +5%% to Black ATK debuff strength"
+			SatyrEffect.Effect.CRIMSON_T3:
+				return "Death Knell: deal Crimson damage to 2 random enemies (3 total with passive)"
+			SatyrEffect.Effect.GOLD_T3:
+				return "For every 2 ATK given by the Gold aura, also give +1 HP"
+			SatyrEffect.Effect.SILVER_T3:
+				return "On Attack: give all Satyrs +%d/+%d per Silver Satyr on board" % [m * 2, m * 2]
+			SatyrEffect.Effect.GREEN_T3:
+				return "Reborn. Death Knell: permanently +1 to Green stat chain bonus"
+			SatyrEffect.Effect.BLACK_T3:
+				return "On Attack: apply Black debuff to both enemies adjacent to the target"
+			SatyrEffect.Effect.PRISMATIC_T4:
+				return "When any friendly Satyr dies: summon a random-color Satyr token in its place"
+			SatyrEffect.Effect.BLACK_T4:
+				return "Whenever any friendly Satyr attacks: apply Black debuff to that target"
+			SatyrEffect.Effect.GOLD_T4:
+				return "Each Silver Satyr on board also counts as a Gold Satyr for the aura"
+			SatyrEffect.Effect.GREEN_T4:
+				return "When a Green Satyr dies: resummon it at full current stats (max 2× per fight)"
+			SatyrEffect.Effect.CRIMSON_T4:
+				return "Each time this unit deals damage: permanently +%d/+%d" % [m * 3, m * 3]
+			SatyrEffect.Effect.SILVER_T4:
+				return "After any friendly makes a kill: permanently give the whole board +%d/+%d" % [m * 3, m * 3]
 		return ""
 	if data.race != RaceType.Race.HUMAN:
 		return ""

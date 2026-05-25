@@ -234,10 +234,11 @@ func _refresh_upgrades() -> void:
 		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 		info.add_child(desc_lbl)
 
+		var effective_cost: int = upg["cost"] + GameData.shop_cost_bonus
 		var btn := Button.new()
-		btn.text = "Buy\n%dg" % upg["cost"]
+		btn.text = "Buy\n%dg" % effective_cost
 		btn.custom_minimum_size = Vector2(72, 52)
-		btn.disabled = _gold < upg["cost"]
+		btn.disabled = _gold < effective_cost
 		var key: String = upg["key"]
 		btn.pressed.connect(func(): upgrade_bought.emit(key))
 		row.add_child(btn)

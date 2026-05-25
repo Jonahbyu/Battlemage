@@ -11,6 +11,7 @@ var fight_button: Button
 var continue_button: Button
 
 signal combat_ended(player_damage: int)
+signal relay_surge_requested(candidates: Array)
 
 var player_attacks_next: bool = false
 var is_running: bool = false
@@ -26,10 +27,13 @@ var _last_spell_cast: SpellData = null
 var _last_spell_fire_count: int = 0
 var pending_gold_reward: int = 0   # accumulated by Coin Sage death knells, read by combat_arena
 var pending_hsp_bonus: int = 0     # accumulated by Warden death knells, read by combat_arena
+var pending_permanent_stats: Dictionary = {}  # UnitCard → Vector2i(atk, hp) — read by combat_arena
 var support_card: UnitCard = null
 var goblin_shop_data: GoblinShopData = null
 var aztec_shop_data: AztecShopData = null
 var aztec_gold: int = 0
+var aztec_player_hp: int = 100
+var aztec_bench_count: int = 0
 var construct_shop_data: ConstructShopData = null
 var reaper_shop_data: ReaperShopData = null
 var myconid_shop_data: MyconidShopData = null
@@ -73,9 +77,22 @@ const MYCONID_PARASITE_PATH := "res://resources/units/myconids/parasite.tres"
 var _avenge_counters: Dictionary = {}      # UnitCard → int, counts deaths toward Avenge threshold
 var _goblin_summon_uses: Dictionary = {}   # UnitCard → int, reset each combat
 
+var satyr_shop_data: SatyrShopData = null
+var enemy_satyr_shop_data: SatyrShopData = null
+var _satyr_gold_aura_applied: Dictionary = {}  # UnitCard → int (total ATK bonus from Gold auras)
+var _eternal_grove_spawns: Dictionary = {}     # String path → int (times resummoned this fight)
+
 const MAX_BOARD_SIZE := 7
 const GOBLIN_PEON_PATH := "res://resources/units/goblins/goblin_peon.tres"
 const GOBLIN_PEON_CHAIN_PATH := "res://resources/units/goblins/goblin_peon_chain.tres"
+const GREEN_SATYR_PATH := "res://resources/units/satyrs/green_satyr.tres"
+const SATYR_TOKEN_PATHS: Dictionary = {
+	1: "res://resources/units/satyrs/crimson_token.tres",
+	2: "res://resources/units/satyrs/gold_token.tres",
+	3: "res://resources/units/satyrs/silver_token.tres",
+	4: "res://resources/units/satyrs/green_token.tres",
+	5: "res://resources/units/satyrs/black_token.tres",
+}
 
 
 func setup(
@@ -104,6 +121,8 @@ func start_combat() -> void:
 	pending_hsp_bonus = 0
 	_avenge_counters.clear()
 	_goblin_summon_uses.clear()
+	_satyr_gold_aura_applied.clear()
+	_eternal_grove_spawns.clear()
 	_unit_killers.clear()
 	for card in player_board.units:
 		if is_instance_valid(card):
@@ -112,6 +131,7 @@ func start_combat() -> void:
 		if is_instance_valid(card):
 			card.bonded_units.clear()
 	_construct_atk_applied.clear()
+	pending_permanent_stats.clear()
 	_doom_counters.clear()
 	_friendly_doom_counters.clear()
 	_reaper_aura_applied.clear()
@@ -143,7 +163,6 @@ func start_combat() -> void:
 	_apply_atk_skew_aura(player_board)
 	_apply_atk_skew_aura(enemy_board)
 	_apply_aztec_blessing(player_board)
-	_apply_warden_aura(player_board)
 	_apply_construct_charges(player_board)
 	_init_myco_cap_bonus(player_board)
 	_init_spore_hoarder(player_board)
@@ -151,6 +170,7 @@ func start_combat() -> void:
 	_apply_elf_soc_effects()
 	_apply_covenant_soc_effects()
 	_apply_reaper_soc_effects()
+	_apply_satyr_soc_effects()
 	_apply_enemy_faction_setup()
 	_fire_start_of_combat_spells()
 	await _process_deaths()
@@ -270,6 +290,7 @@ func _process_next_attack() -> void:
 		_check_kill_budget(attacker)
 		_check_kill_gold(attacker)
 		_check_elf_on_kill(attacker)
+		_check_satyr_kill_effects(attacker)
 
 	await _process_deaths()
 
@@ -292,6 +313,7 @@ func _process_next_attack() -> void:
 				_check_kill_budget(attacker)
 				_check_kill_gold(attacker)
 				_check_elf_on_kill(attacker)
+				_check_satyr_kill_effects(attacker)
 			await _process_deaths()
 			if is_instance_valid(attacker) and attacker_board == player_board:
 				_fire_reaper_attack_effects(attacker, second_target)
@@ -308,6 +330,7 @@ func _process_next_attack() -> void:
 			_fire_elf_attack_effects(attacker)
 			_fire_covenant_attack_effects(attacker, defender)
 			_fire_reaper_attack_effects(attacker, defender)
+			_fire_satyr_attack_effects(attacker, defender, attacker_board, defender_board)
 	else:
 		_tick_friendly_doom_all()
 		_fire_triggered_spells(SpellTrigger.Trigger.WHEN_ATTACKED, trigger_unit)
@@ -332,6 +355,8 @@ func _process_next_attack() -> void:
 			_sporulate()
 		_covenant_end_of_turn()
 		_reaper_end_of_turn()
+		_aztec_end_of_turn()
+		_satyr_end_of_turn()
 	await get_tree().create_timer(0.35).timeout
 	await _process_next_attack()
 
@@ -355,6 +380,9 @@ func _pick_target(attacker: UnitCard, defender_board: Board) -> UnitCard:
 			and attacker.data.human_effect == HumanEffect.Effect.SNIPER_BONUS:
 		var all_alive := defender_board.units.filter(func(u): return not u.is_dead)
 		return _get_lowest_hp_target(all_alive)
+	if attacker.data.race == RaceType.Race.SATYR \
+			and _is_silver_satyr(attacker.data.satyr_effect):
+		return _get_highest_hp_target(valid_targets)
 	return valid_targets[randi() % valid_targets.size()]
 
 
@@ -455,8 +483,28 @@ func _resolve_attack(
 		if defender.data.race == RaceType.Race.CONSTRUCT and defender_board == player_board \
 				and construct_shop_data != null and defender.construct_charge > 0:
 			raw_dmg = _absorb_construct_damage(defender, raw_dmg, attacker)
+		# Silver bonus damage: target highest HP, deal extra damage
+		if attacker.data.race == RaceType.Race.SATYR \
+				and _is_silver_satyr(attacker.data.satyr_effect):
+			var sd: SatyrShopData = satyr_shop_data if attacker_board == player_board else enemy_satyr_shop_data
+			var silver_bonus: int = sd.silver_bonus_damage if sd != null else 5
+			if _get_mono_color(attacker_board) == SatyrColor.Hue.SILVER:
+				silver_bonus *= 2
+			raw_dmg += silver_bonus
 		defender.current_health -= raw_dmg
 		def_hit = true
+		# Blood Hunger (Crimson T4): on damage dealt, +3/+3 permanently
+		if raw_dmg > 0 and attacker_board == player_board \
+				and attacker.data.race == RaceType.Race.SATYR \
+				and attacker.data.satyr_effect == SatyrEffect.Effect.CRIMSON_T4:
+			attacker.current_attack += 3
+			attacker.current_health += 3
+			attacker.refresh_display()
+			_log("%s: Blood Hunger — +3/+3!" % attacker.data.display_name)
+		# Black on-hit: debuff random enemy ATK, spawn Black token
+		if raw_dmg > 0 and attacker.data.race == RaceType.Race.SATYR \
+				and _is_black_basic_satyr(attacker.data.satyr_effect):
+			_apply_black_satyr_on_hit(attacker, defender_board, attacker_board)
 
 	# Defender counter → Attacker
 	var sniper_kill := def_hit \
@@ -501,6 +549,10 @@ func _resolve_attack(
 		_add_construct_charge(defender, construct_shop_data.recoil_charge)
 		if not defender.construct_depowered:
 			_log("%s gains %d Charge (Recoil)!" % [defender.data.display_name, construct_shop_data.recoil_charge])
+		if defender.data.construct_effect == ConstructEffect.Effect.IRON_SENTINEL:
+			var sentinel_gain := 6 if defender.is_radiant else 3
+			_add_construct_charge(defender, sentinel_gain, true)
+			_log("%s Iron Sentinel: +%d Charge!" % [defender.data.display_name, sentinel_gain])
 
 	await _play_damage_anim(defender, def_shield_broken)
 	await _play_damage_anim(attacker, atk_shield_broken)
@@ -721,6 +773,83 @@ func _process_deaths() -> void:
 								_log("%s Death Knell: %s %s +%d level!" % [
 									dead.data.display_name, target_mage.data.display_name,
 									SpellTrigger.display_name(chosen), levels])
+
+		# Aztec death knells
+		if dead.data.race == RaceType.Race.AZTEC and parent_board == player_board:
+			match dead.data.aztec_effect:
+				AztecEffect.Effect.GILDED_MARTYR:
+					if aztec_gold > 0:
+						var dmg := aztec_gold
+						var alive_enemies := opp_board.units.filter(func(u): return not u.is_dead)
+						if not alive_enemies.is_empty():
+							var target: UnitCard = alive_enemies[randi() % alive_enemies.size()]
+							target.current_health -= dmg
+							target.refresh_display()
+						_log("%s Death Knell: %d dmg from %d gold!" % [dead.data.display_name, dmg, aztec_gold])
+				AztecEffect.Effect.GOLD_EFFIGY:
+					if aztec_gold > 0:
+						var dmg := aztec_gold
+						var alive_enemies := opp_board.units.filter(func(u): return not u.is_dead)
+						if not alive_enemies.is_empty():
+							var target: UnitCard = alive_enemies[randi() % alive_enemies.size()]
+							target.current_health -= dmg
+							target.refresh_display()
+						_log("%s Death Knell: %d dmg from %d gold!" % [dead.data.display_name, dmg, aztec_gold])
+				AztecEffect.Effect.SUN_HERALD:
+					_spawn_aztec_gold_idol(parent_board)
+
+		# Construct death knells
+		if dead.data.race == RaceType.Race.CONSTRUCT and parent_board == player_board:
+			if dead.data.construct_effect == ConstructEffect.Effect.MELTDOWN:
+				var melt_gain := 6 if dead.is_radiant else 3
+				for ally: UnitCard in parent_board.units:
+					if not is_instance_valid(ally) or ally.is_dead or newly_dead.has(ally):
+						continue
+					if ally.data.race == RaceType.Race.CONSTRUCT:
+						_add_construct_charge(ally, melt_gain, true)
+					_grant_permanent_stats(ally, melt_gain, melt_gain)
+				_log("%s Meltdown: Constructs +%d Charge, board +%d/+%d permanently!" % [dead.data.display_name, melt_gain, melt_gain, melt_gain])
+			if dead.data.construct_effect == ConstructEffect.Effect.RELAY_NODE:
+				var dead_idx := parent_board.units.find(dead)
+				var relay_candidates: Array = []
+				if dead_idx > 0:
+					var left: UnitCard = parent_board.units[dead_idx - 1]
+					if is_instance_valid(left) and not left.is_dead:
+						relay_candidates.append(left)
+				if dead_idx < parent_board.units.size() - 1:
+					var right: UnitCard = parent_board.units[dead_idx + 1]
+					if is_instance_valid(right) and not right.is_dead:
+						relay_candidates.append(right)
+				if not relay_candidates.is_empty():
+					relay_surge_requested.emit(relay_candidates)
+					_log("%s Relay Node: looking for adjacent Battlecry..." % dead.data.display_name)
+			if dead.data.construct_effect == ConstructEffect.Effect.ARC_COIL:
+				var dead_idx := parent_board.units.find(dead)
+				var arc_candidates: Array = []
+				if dead_idx > 0:
+					var left: UnitCard = parent_board.units[dead_idx - 1]
+					if is_instance_valid(left) and not left.is_dead \
+							and left.data.race == RaceType.Race.CONSTRUCT:
+						arc_candidates.append(left)
+				if dead_idx < parent_board.units.size() - 1:
+					var right: UnitCard = parent_board.units[dead_idx + 1]
+					if is_instance_valid(right) and not right.is_dead \
+							and right.data.race == RaceType.Race.CONSTRUCT:
+						arc_candidates.append(right)
+				if not arc_candidates.is_empty():
+					var arc_target: UnitCard = arc_candidates[randi() % arc_candidates.size()]
+					var peak := dead.construct_peak_charge
+					_add_construct_charge(arc_target, peak, true)
+					_log("%s Arc Coil: %s gains %d Charge!" % [dead.data.display_name, arc_target.data.display_name, peak])
+				if dead.data.construct_effect == ConstructEffect.Effect.FISSION_CORE:
+					var peak := dead.construct_peak_charge
+					if peak > 0:
+						var fission_gain := peak * 2 if dead.is_radiant else peak
+						for ally: UnitCard in parent_board.units:
+							if not is_instance_valid(ally) or ally.is_dead or newly_dead.has(ally):
+								continue
+							_grant_permanent_stats(ally, fission_gain, fission_gain)
+						_log("%s Fission Core: board +%d/+%d permanently!" % [dead.data.display_name, fission_gain, fission_gain])
 
 		# Warchief aura: any living friendly Warchief summons a replacement when a Goblin dies
 		if parent_board == player_board:
@@ -982,6 +1111,9 @@ func _process_deaths() -> void:
 						_update_reaper_aura()
 				else:
 					_avenge_counters[rc_card] = rc_cnt
+
+		# Satyr faction death effects
+		_on_satyr_death(dead, parent_board, newly_dead)
 
 		# Berserk: all living units bonded to this dead unit go berserk
 		var bonds_copy := dead.bonded_units.duplicate()
@@ -1304,77 +1436,115 @@ func _check_kill_budget(attacker: UnitCard) -> void:
 func _check_kill_gold(attacker: UnitCard) -> void:
 	if not is_instance_valid(attacker) or attacker.is_dead:
 		return
-	if attacker.data.race != RaceType.Race.AZTEC:
-		return
-	if attacker.data.aztec_effect != AztecEffect.Effect.KILL_GOLD:
-		return
-	var gain := 2 if attacker.is_radiant else 1
-	pending_gold_reward += gain
-	_log("%s kill: +%dg!" % [attacker.data.display_name, gain])
+	# Tribute Hunter: on kill gain 1 gold (Radiant: 2)
+	if attacker.data.race == RaceType.Race.AZTEC \
+			and attacker.data.aztec_effect == AztecEffect.Effect.TRIBUTE_HUNTER:
+		var gain := 2 if attacker.is_radiant else 1
+		pending_gold_reward += gain
+		_log("%s kill: +%dg!" % [attacker.data.display_name, gain])
+	# Tithe Warden aura: any friendly kill gives +1 gold if Tithe Warden alive
+	if player_board.units.has(attacker):
+		for card in player_board.units:
+			if is_instance_valid(card) and not card.is_dead \
+					and card.data.race == RaceType.Race.AZTEC \
+					and card.data.aztec_effect == AztecEffect.Effect.TITHE_WARDEN:
+				pending_gold_reward += 1
+				_log("Tithe Warden: +1g on kill!")
+				break
 
 
 func _apply_aztec_blessing(board: Board) -> void:
 	if aztec_shop_data == null:
 		return
-	# Determine effective blessing rate: base + BLESSING_AURA units + doubled by HIGH_PRIEST_AURA
+	# Rate: base + Sun Idol aura bonuses
 	var rate := aztec_shop_data.blessing_rate
-	var has_high_priest := false
 	for card in board.units:
 		if not is_instance_valid(card) or card.is_dead:
 			continue
 		if card.data.race != RaceType.Race.AZTEC:
 			continue
-		if card.data.aztec_effect == AztecEffect.Effect.HIGH_PRIEST_AURA:
-			has_high_priest = true
-		elif card.data.aztec_effect == AztecEffect.Effect.BLESSING_AURA:
+		if card.data.aztec_effect == AztecEffect.Effect.SUN_IDOL:
 			rate += 2 if card.is_radiant else 1
-	if has_high_priest:
-		rate *= 2
-	if rate <= 0 or aztec_gold <= 0:
-		return
-	var bonus := rate * aztec_gold
-	for card in board.units:
-		if not is_instance_valid(card) or card.is_dead:
-			continue
-		if card.data.race != RaceType.Race.AZTEC:
-			continue
-		card.current_attack += bonus
-		card.current_health += bonus
-		card.refresh_display()
-	_log("Aztec Blessing (rate %d × %dg): all Aztecs +%d/+%d!" % [rate, aztec_gold, bonus, bonus])
-	# Jaguar Bonus: Sun Jaguar gains +1 ATK per 5 gold on top of the blessing
+	# Effective gold: doubled by Golden Sovereign aura
+	var effective_gold := aztec_gold
 	for card in board.units:
 		if not is_instance_valid(card) or card.is_dead:
 			continue
 		if card.data.race == RaceType.Race.AZTEC \
-				and card.data.aztec_effect == AztecEffect.Effect.JAGUAR_BONUS:
-			var jaguar_atk := aztec_gold / 5
-			if jaguar_atk > 0:
-				card.current_attack += jaguar_atk
-				card.refresh_display()
-				_log("%s Jaguar Bonus: +%d ATK from %d gold!" % [card.data.display_name, jaguar_atk, aztec_gold])
-
-
-func _apply_warden_aura(board: Board) -> void:
-	var has_warden := false
-	for card in board.units:
-		if not is_instance_valid(card) or card.is_dead:
-			continue
-		if card.data.race == RaceType.Race.AZTEC \
-				and card.data.aztec_effect == AztecEffect.Effect.WARDEN_AURA:
-			has_warden = true
+				and card.data.aztec_effect == AztecEffect.Effect.GOLDEN_SOVEREIGN:
+			effective_gold *= 2
 			break
-	if not has_warden:
+	if rate <= 0 or effective_gold <= 0:
 		return
+	var bonus := rate * effective_gold
 	for card in board.units:
 		if not is_instance_valid(card) or card.is_dead:
 			continue
 		if card.data.race != RaceType.Race.AZTEC:
 			continue
-		card.current_attack += 2
-		card.current_health += 2
+		var card_bonus := bonus * (2 if card.data.aztec_effect == AztecEffect.Effect.GOLD_IDOL_TOKEN else 1)
+		card.current_attack += card_bonus
+		card.current_health += card_bonus
 		card.refresh_display()
-	_log("Temple Warden aura: all friendly Aztecs +2/+2!")
+	_log("Aztec Blessing (rate %d × %dg): all Aztecs +%d/+%d!" % [rate, effective_gold, bonus, bonus])
+	# The Starved: additional +1/+1 per player HP missing
+	var hp_missing := maxi(0, 100 - aztec_player_hp)
+	if hp_missing > 0:
+		for card in board.units:
+			if not is_instance_valid(card) or card.is_dead:
+				continue
+			if card.data.race == RaceType.Race.AZTEC \
+					and card.data.aztec_effect == AztecEffect.Effect.THE_STARVED:
+				card.current_attack += hp_missing
+				card.current_health += hp_missing
+				card.refresh_display()
+				_log("The Starved: +%d/+%d from %d HP missing!" % [hp_missing, hp_missing, hp_missing])
+
+
+func _aztec_end_of_turn() -> void:
+	if aztec_bench_count <= 0:
+		return
+	for card in player_board.units:
+		if not is_instance_valid(card) or card.is_dead:
+			continue
+		if card.data.race == RaceType.Race.AZTEC \
+				and card.data.aztec_effect == AztecEffect.Effect.VAULT_KEEPER:
+			pending_gold_reward += aztec_bench_count
+			_log("Vault Keeper: +%dg from %d bench units!" % [aztec_bench_count, aztec_bench_count])
+			break
+
+
+func _spawn_aztec_gold_idol(board: Board) -> void:
+	if board.units.filter(func(u): return not u.is_dead).size() >= MAX_BOARD_SIZE:
+		return
+	if unit_card_scene == null:
+		return
+	var idol_data: UnitData = load("res://resources/units/aztecs/gold_idol_token.tres")
+	if idol_data == null:
+		push_error("CombatManager: gold_idol_token.tres not found!")
+		return
+	var token: UnitCard = unit_card_scene.instantiate()
+	board.slots_container.add_child(token)
+	board.units.append(token)
+	token.attack_direction = board.attack_dir
+	token.is_draggable = board.is_draggable
+	token.initialize(idol_data)
+	token.current_attack = idol_data.base_attack
+	token.current_health = idol_data.base_health
+	# Apply 2x blessing immediately
+	if aztec_shop_data != null and aztec_gold > 0:
+		var rate := aztec_shop_data.blessing_rate
+		var effective_gold := aztec_gold
+		for card in board.units:
+			if is_instance_valid(card) and not card.is_dead \
+					and card.data.aztec_effect == AztecEffect.Effect.GOLDEN_SOVEREIGN:
+				effective_gold *= 2
+				break
+		var idol_bonus := rate * effective_gold * 2
+		token.current_attack += idol_bonus
+		token.current_health += idol_bonus
+	token.refresh_display()
+	_log("Sun Herald Death Knell: Gold Idol summoned!")
 
 
 func _fire_myconid_attack_effects(attacker: UnitCard) -> void:
@@ -1515,6 +1685,14 @@ func _log(text: String) -> void:
 func _apply_construct_charges(board: Board) -> void:
 	if construct_shop_data == null:
 		return
+	# Snapshot persistent charge and reset peak before any SOC additions
+	for card in board.units:
+		if not is_instance_valid(card) or card.is_dead:
+			continue
+		if card.data.race != RaceType.Race.CONSTRUCT:
+			continue
+		card.construct_persistent_charge = card.construct_charge
+		card.construct_peak_charge = card.construct_charge
 	# Apply ATK bonus for existing persistent charge, then add cache on top
 	for card in board.units:
 		if not is_instance_valid(card) or card.is_dead:
@@ -1545,6 +1723,23 @@ func _apply_construct_charges(board: Board) -> void:
 			if i < alive.size() - 1 and (alive[i + 1] as UnitCard).data.race == RaceType.Race.CONSTRUCT:
 				_add_construct_charge(alive[i + 1], winder_charge, true)
 				_log("%s (Gear Up): %s gains +%d Charge!" % [card.data.display_name, (alive[i + 1] as UnitCard).data.display_name, winder_charge])
+	# Capacitor: gain 1 Charge per friendly Construct in play
+	var construct_count := alive.filter(func(c): return (c as UnitCard).data.race == RaceType.Race.CONSTRUCT).size()
+	for card2: UnitCard in alive:
+		if card2.data.construct_effect == ConstructEffect.Effect.CAPACITOR:
+			var cap_charge := construct_count * 2 if card2.is_radiant else construct_count
+			_add_construct_charge(card2, cap_charge, true)
+			_log("%s gains %d Charge (Capacitor)!" % [card2.data.display_name, cap_charge])
+	# Grand Capacitor: gain 1 Charge per total Charge among all friendly Constructs (fires last)
+	var total_construct_charge := 0
+	for card3: UnitCard in alive:
+		if (card3 as UnitCard).data.race == RaceType.Race.CONSTRUCT:
+			total_construct_charge += card3.construct_charge
+	for card3: UnitCard in alive:
+		if card3.data.construct_effect == ConstructEffect.Effect.GRAND_CAPACITOR:
+			var gc_charge := total_construct_charge * 2 if card3.is_radiant else total_construct_charge
+			_add_construct_charge(card3, gc_charge, true)
+			_log("%s gains %d Charge (Grand Capacitor)!" % [card3.data.display_name, gc_charge])
 
 
 func _apply_resonance_charge() -> void:
@@ -1563,6 +1758,7 @@ func _add_construct_charge(card: UnitCard, amount: int, force: bool = false) -> 
 	if not force and card.construct_depowered:
 		return
 	card.construct_charge += amount
+	card.construct_peak_charge = maxi(card.construct_peak_charge, card.construct_charge)
 	card.current_attack += amount
 	var applied: int = int(_construct_atk_applied.get(card, 0))
 	_construct_atk_applied[card] = applied + amount
@@ -1579,31 +1775,86 @@ func _spend_construct_charges(card: UnitCard, charges: int) -> int:
 	_construct_atk_applied[card] = maxi(0, applied - actual)
 	if card.construct_charge <= 0:
 		card.construct_charge = 0
-		card.construct_depowered = true
-		_log("%s is DEPOWERED (0 Charge)!" % card.data.display_name)
+		if card.data.construct_effect == ConstructEffect.Effect.REIGNITER and not card.construct_reignited:
+			card.construct_reignited = true
+			_add_construct_charge(card, 3, true)
+			_log("%s Reignites! Regains 3 Charge!" % card.data.display_name)
+		else:
+			# Recharge Protocol: first depower per unit per combat gives charge instead
+			var protocol_saved := false
+			if not card.construct_protocol_used and player_board.units.has(card):
+				for ally: UnitCard in player_board.units:
+					if is_instance_valid(ally) and not ally.is_dead and ally.data != null \
+							and ally.data.construct_effect == ConstructEffect.Effect.RECHARGE_PROTOCOL:
+						var rp_gain := 10 if ally.is_radiant else 5
+						card.construct_protocol_used = true
+						_add_construct_charge(card, rp_gain, true)
+						_log("Recharge Protocol: %s avoids Depower, gains %d Charge!" % [card.data.display_name, rp_gain])
+						protocol_saved = true
+						break
+			if not protocol_saved:
+				card.construct_depowered = true
+				_log("%s is DEPOWERED (0 Charge)!" % card.data.display_name)
+				# Overload Core: depowered unit gets +10/+10 this combat
+				if player_board.units.has(card):
+					for ally: UnitCard in player_board.units:
+						if is_instance_valid(ally) and not ally.is_dead and ally.data != null \
+								and ally.data.construct_effect == ConstructEffect.Effect.OVERLOAD_CORE:
+							var oc_gain := 20 if ally.is_radiant else 10
+							_grant_combat_temp_buff(card, oc_gain, oc_gain)
+							_log("Overload Core: %s +%d/+%d this combat!" % [card.data.display_name, oc_gain, oc_gain])
+							break
+	# Discharge Engine + Charge Siphon: per charge point spent
+	if player_board.units.has(card):
+		for ally: UnitCard in player_board.units:
+			if not is_instance_valid(ally) or ally.is_dead or ally.data == null:
+				continue
+			if ally.data.construct_effect == ConstructEffect.Effect.DISCHARGE_ENGINE:
+				var eng_mult := 2 if ally.is_radiant else 1
+				for board_unit: UnitCard in player_board.units:
+					if is_instance_valid(board_unit) and not board_unit.is_dead:
+						board_unit.current_attack += actual * eng_mult
+						board_unit.refresh_display()
+				_log("Discharge Engine: board +%d ATK!" % (actual * eng_mult))
+			if ally.data.construct_effect == ConstructEffect.Effect.CHARGE_SIPHON and ally != card:
+				var siphon_gain := actual * 2 if ally.is_radiant else actual
+				_grant_permanent_stats(ally, siphon_gain, siphon_gain)
+				_log("Charge Siphon: %s +%d/+%d permanently!" % [ally.data.display_name, siphon_gain, siphon_gain])
 	card.refresh_display()
-	if construct_shop_data == null:
-		return actual
-	return actual * construct_shop_data.counter_per_charge
+	var counter_mult := 2 if card.data.construct_effect == ConstructEffect.Effect.VOLT_STRIKER else 1
+	if card.is_radiant and card.data.construct_effect == ConstructEffect.Effect.VOLT_STRIKER:
+		counter_mult = 4
+	return actual * counter_mult
+
+
+func _grant_permanent_stats(card: UnitCard, atk: int, hp: int) -> void:
+	var cur: Vector2i = pending_permanent_stats.get(card, Vector2i(0, 0))
+	pending_permanent_stats[card] = Vector2i(cur.x + atk, cur.y + hp)
+	card.current_attack += atk
+	card.current_health += hp
+	card.refresh_display()
+
+
+func _grant_combat_temp_buff(card: UnitCard, atk: int, hp: int) -> void:
+	card.combat_temp_atk += atk
+	card.combat_temp_hp += hp
+	card.current_attack += atk
+	card.current_health += hp
+	card.refresh_display()
 
 
 func _absorb_construct_damage(card: UnitCard, dmg: int, attacker: UnitCard) -> int:
-	if construct_shop_data == null:
-		return dmg
-	var bpc: int = construct_shop_data.block_per_charge
 	var charges: int = card.construct_charge
-	var max_block: int = charges * bpc
-	if dmg <= max_block:
-		var spent: int = ceili(float(dmg) / float(bpc))
-		var counter: int = _spend_construct_charges(card, spent)
+	if dmg <= charges:
+		var counter: int = _spend_construct_charges(card, dmg)
 		attacker.current_health -= counter
 		_log("%s Charge shield absorbs %d dmg, returns %d!" % [card.data.display_name, dmg, counter])
 		return 0
 	else:
 		var counter: int = _spend_construct_charges(card, charges)
 		attacker.current_health -= counter
-		_log("%s Charge shield absorbs %d dmg, returns %d, %d spills through!" % [card.data.display_name, max_block, counter, dmg - max_block])
-		return dmg - max_block
+		_log("%s Charge shield absorbs %d dmg, returns %d, %d spills through!" % [card.data.display_name, charges, counter, dmg - charges])
+		return dmg - charges
 
 
 # ── Reaper: Doom ──────────────────────────────────────────────────────────────
@@ -1745,7 +1996,6 @@ func _apply_reaper_soc_effects() -> void:
 # ── Enemy faction setup (mirrors start-of-combat player setup for enemy board) ──
 
 func _apply_enemy_faction_setup() -> void:
-	_apply_warden_aura(enemy_board)
 	_init_myco_cap_bonus(enemy_board)
 
 	# Construct: apply cache charge and existing persistent charge ATK bonus
@@ -2645,3 +2895,371 @@ func _rite_spawner_covenantling_attack(
 		target.refresh_display()
 		if target.current_health <= 0:
 			_unit_killers[target] = token
+
+
+# ── Satyr system ─────────────────────────────────────────────────────────────
+
+func _is_silver_satyr(effect: int) -> bool:
+	return effect in [
+		SatyrEffect.Effect.SILVER,
+		SatyrEffect.Effect.SILVER_T2,
+		SatyrEffect.Effect.SILVER_T3,
+		SatyrEffect.Effect.SILVER_T4,
+	]
+
+
+func _is_black_basic_satyr(effect: int) -> bool:
+	return effect in [SatyrEffect.Effect.BLACK, SatyrEffect.Effect.BLACK_T2]
+
+
+func _get_mono_color(board: Board) -> int:
+	var found_color := 0
+	for card in board.units:
+		if not is_instance_valid(card) or card.is_dead:
+			continue
+		if card.data.race != RaceType.Race.SATYR:
+			continue
+		var c: int = card.data.satyr_color
+		if c == SatyrColor.Hue.PRISMATIC or c == SatyrColor.Hue.NONE:
+			return 0
+		if found_color == 0:
+			found_color = c
+		elif found_color != c:
+			return 0
+	return found_color
+
+
+func _count_distinct_satyr_colors(board: Board) -> int:
+	var colors: Dictionary = {}
+	for card in board.units:
+		if not is_instance_valid(card) or card.is_dead:
+			continue
+		if card.data.race != RaceType.Race.SATYR:
+			continue
+		var c: int = card.data.satyr_color
+		if c == SatyrColor.Hue.PRISMATIC:
+			for i in range(1, 6):
+				colors[i] = true
+		elif c != SatyrColor.Hue.NONE:
+			colors[c] = true
+	return colors.size()
+
+
+func _has_auric_mirror(board: Board) -> bool:
+	for card in board.units:
+		if is_instance_valid(card) and not card.is_dead \
+				and card.data.race == RaceType.Race.SATYR \
+				and card.data.satyr_effect == SatyrEffect.Effect.GOLD_T4:
+			return true
+	return false
+
+
+func _get_highest_hp_target(targets: Array) -> UnitCard:
+	var highest: UnitCard = targets[0]
+	for t: UnitCard in targets:
+		if t.current_health > highest.current_health:
+			highest = t
+	return highest
+
+
+func _apply_satyr_soc_effects() -> void:
+	_apply_satyr_gold_aura(player_board)
+	_apply_satyr_gold_aura(enemy_board)
+	if satyr_shop_data != null:
+		_apply_satyr_prismatic_buff(player_board, satyr_shop_data)
+	if enemy_satyr_shop_data != null:
+		_apply_satyr_prismatic_buff(enemy_board, enemy_satyr_shop_data)
+
+
+func _apply_satyr_gold_aura(board: Board) -> void:
+	var sd: SatyrShopData = satyr_shop_data if board == player_board else enemy_satyr_shop_data
+	if sd == null:
+		return
+	var has_auric := _has_auric_mirror(board)
+	var has_gold_t3 := false
+	for card in board.units:
+		if is_instance_valid(card) and not card.is_dead \
+				and card.data.race == RaceType.Race.SATYR \
+				and card.data.satyr_effect == SatyrEffect.Effect.GOLD_T3:
+			has_gold_t3 = true
+			break
+	var mono_gold := _get_mono_color(board) == SatyrColor.Hue.GOLD
+	for gold_src in board.units:
+		if not is_instance_valid(gold_src) or gold_src.is_dead:
+			continue
+		if gold_src.data.race != RaceType.Race.SATYR:
+			continue
+		var is_gold: bool = gold_src.data.satyr_color == SatyrColor.Hue.GOLD
+		var is_silver_as_gold: bool = has_auric and gold_src.data.satyr_color == SatyrColor.Hue.SILVER
+		if not is_gold and not is_silver_as_gold:
+			continue
+		var bonus: int = sd.gold_atk_bonus * (2 if mono_gold else 1)
+		for ally in board.units:
+			if not is_instance_valid(ally) or ally.is_dead or ally == gold_src:
+				continue
+			ally.current_attack += bonus
+			_satyr_gold_aura_applied[ally] = int(_satyr_gold_aura_applied.get(ally, 0)) + bonus
+			if has_gold_t3:
+				ally.current_health += bonus / 2
+			ally.refresh_display()
+		_log("%s Gold Aura: allies +%d ATK!" % [gold_src.data.display_name, bonus])
+
+
+func _apply_satyr_prismatic_buff(board: Board, sd: SatyrShopData) -> void:
+	var color_count := _count_distinct_satyr_colors(board)
+	if color_count == 0:
+		return
+	var pct: int = sd.prismatic_percent * color_count
+	for card in board.units:
+		if not is_instance_valid(card) or card.is_dead:
+			continue
+		card.current_attack += roundi(float(card.current_attack) * pct / 100.0)
+		card.current_health += roundi(float(card.current_health) * pct / 100.0)
+		card.refresh_display()
+	_log("Prismatic Satyr: board +%d%% stats (%d colors)!" % [pct, color_count])
+
+
+func _apply_black_satyr_on_hit(
+		attacker: UnitCard, defender_board: Board, attacker_board: Board) -> void:
+	var sd: SatyrShopData = satyr_shop_data if attacker_board == player_board else enemy_satyr_shop_data
+	var pct: int = sd.black_debuff_percent if sd != null else 10
+	var alive_enemies := defender_board.units.filter(
+		func(u): return is_instance_valid(u) and not u.is_dead)
+	if not alive_enemies.is_empty():
+		var target: UnitCard = alive_enemies[randi() % alive_enemies.size()]
+		var reduce := maxi(1, roundi(float(target.current_attack) * pct / 100.0))
+		target.current_attack = maxi(0, target.current_attack - reduce)
+		target.refresh_display()
+		_log("%s: Black curse — %s ATK -%d!" % [attacker.data.display_name, target.data.display_name, reduce])
+	_spawn_satyr_token(SatyrColor.Hue.BLACK, attacker_board)
+
+
+func _spawn_satyr_token(color: int, board: Board) -> void:
+	if unit_card_scene == null:
+		return
+	var alive_count := board.units.filter(func(u): return not u.is_dead).size()
+	if alive_count >= MAX_BOARD_SIZE:
+		return
+	var path: String = SATYR_TOKEN_PATHS.get(color, "")
+	if path.is_empty():
+		return
+	var token_data := load(path) as UnitData
+	if token_data == null:
+		return
+	var token: UnitCard = unit_card_scene.instantiate()
+	board.slots_container.add_child(token)
+	board.units.append(token)
+	token.attack_direction = board.attack_dir
+	token.initialize(token_data)
+	token.refresh_display()
+	_log("Satyr token summoned: %s!" % token_data.display_name)
+
+
+func _spawn_satyr_unit(data: UnitData, board: Board, dead_card: UnitCard = null) -> UnitCard:
+	if unit_card_scene == null:
+		return null
+	var alive_count := board.units.filter(func(u): return not u.is_dead).size()
+	if alive_count >= MAX_BOARD_SIZE:
+		return null
+	var unit: UnitCard = unit_card_scene.instantiate()
+	board.slots_container.add_child(unit)
+	if dead_card != null and board.units.has(dead_card):
+		var visual_idx := dead_card.get_index()
+		var logical_idx := board.units.find(dead_card)
+		board.units.insert(logical_idx, unit)
+		board.slots_container.move_child(unit, visual_idx)
+	else:
+		board.units.append(unit)
+	unit.attack_direction = board.attack_dir
+	unit.initialize(data)
+	unit.refresh_display()
+	return unit
+
+
+func _satyr_burst_damage(amount: int, target_board: Board, source: UnitCard) -> void:
+	var alive := target_board.units.filter(func(u): return is_instance_valid(u) and not u.is_dead)
+	if alive.is_empty():
+		return
+	var targ: UnitCard = alive[randi() % alive.size()]
+	targ.current_health -= amount
+	targ.refresh_display()
+	_log("%s: death burst — %s takes %d damage!" % [source.data.display_name, targ.data.display_name, amount])
+
+
+func _fire_satyr_attack_effects(
+		attacker: UnitCard, defender: UnitCard,
+		attacker_board: Board, defender_board: Board) -> void:
+	if attacker.data.race != RaceType.Race.SATYR:
+		return
+	var sd: SatyrShopData = satyr_shop_data if attacker_board == player_board else enemy_satyr_shop_data
+	# Silver T3 (Lunar Surge): on attack, all satyrs +2/+2 per Silver Satyr alive
+	if attacker.data.satyr_effect == SatyrEffect.Effect.SILVER_T3:
+		var silver_count := 0
+		for card in attacker_board.units:
+			if is_instance_valid(card) and not card.is_dead \
+					and card.data.race == RaceType.Race.SATYR \
+					and card.data.satyr_color == SatyrColor.Hue.SILVER:
+				silver_count += 1
+		if silver_count > 0:
+			var buff := 2 * silver_count
+			for ally in attacker_board.units:
+				if is_instance_valid(ally) and not ally.is_dead:
+					ally.current_attack += buff
+					ally.current_health += buff
+					ally.refresh_display()
+			_log("%s Lunar Surge: board +%d/+%d (%d Silver)!" % [
+				attacker.data.display_name, buff, buff, silver_count])
+	# Black T3 (Pestilence): on attack, debuff both adjacent enemies of the target
+	if attacker.data.satyr_effect == SatyrEffect.Effect.BLACK_T3 \
+			and is_instance_valid(defender) and not defender.is_dead:
+		var pct: int = sd.black_debuff_percent if sd != null else 10
+		for nb in _get_board_neighbors(defender_board, defender):
+			if is_instance_valid(nb) and not nb.is_dead:
+				var reduce := maxi(1, roundi(float(nb.current_attack) * pct / 100.0))
+				nb.current_attack = maxi(0, nb.current_attack - reduce)
+				nb.refresh_display()
+				_log("%s Pestilence: %s ATK -%d!" % [attacker.data.display_name, nb.data.display_name, reduce])
+	# Black T4 (Pack Sovereign): whenever a friendly satyr attacks, debuff the target
+	if is_instance_valid(defender) and not defender.is_dead:
+		for ally in attacker_board.units:
+			if not is_instance_valid(ally) or ally.is_dead:
+				continue
+			if ally.data.race != RaceType.Race.SATYR:
+				continue
+			if ally.data.satyr_effect != SatyrEffect.Effect.BLACK_T4:
+				continue
+			var pct: int = sd.black_debuff_percent if sd != null else 10
+			var reduce := maxi(1, roundi(float(defender.current_attack) * pct / 100.0))
+			defender.current_attack = maxi(0, defender.current_attack - reduce)
+			defender.refresh_display()
+			_log("%s Pack Sovereign: %s ATK -%d!" % [ally.data.display_name, defender.data.display_name, reduce])
+			break
+
+
+func _check_satyr_kill_effects(attacker: UnitCard) -> void:
+	# Silver T4: on any kill, board +3/+3 permanently
+	for ally in player_board.units:
+		if not is_instance_valid(ally) or ally.is_dead:
+			continue
+		if ally.data.race != RaceType.Race.SATYR:
+			continue
+		if ally.data.satyr_effect != SatyrEffect.Effect.SILVER_T4:
+			continue
+		for board_unit in player_board.units:
+			if is_instance_valid(board_unit) and not board_unit.is_dead:
+				board_unit.current_attack += 3
+				board_unit.current_health += 3
+				board_unit.refresh_display()
+		_log("%s: kill — board +3/+3!" % ally.data.display_name)
+		break
+
+
+func _satyr_end_of_turn() -> void:
+	if satyr_shop_data == null:
+		return
+	for card in player_board.units:
+		if not is_instance_valid(card) or card.is_dead:
+			continue
+		if card.data.race != RaceType.Race.SATYR:
+			continue
+		if card.data.satyr_effect == SatyrEffect.Effect.BLACK_T2:
+			satyr_shop_data.black_debuff_percent += 5
+			_log("%s: Plague Sovereign — black debuff now %d%%!" % [
+				card.data.display_name, satyr_shop_data.black_debuff_percent])
+
+
+func _on_satyr_death(dead: UnitCard, parent_board: Board, newly_dead: Array) -> void:
+	if dead.data.race != RaceType.Race.SATYR:
+		return
+	var sd: SatyrShopData = satyr_shop_data if parent_board == player_board else enemy_satyr_shop_data
+	var is_player := parent_board == player_board
+	var knell_mult := _get_knell_multiplier(parent_board, newly_dead)
+	var opp_board := enemy_board if parent_board == player_board else player_board
+
+	# Gold aura removal: when a Gold satyr dies, subtract its aura from allies
+	if dead.data.satyr_color == SatyrColor.Hue.GOLD:
+		var gold_bonus: int = sd.gold_atk_bonus if sd != null else 1
+		for ally in parent_board.units:
+			if not is_instance_valid(ally) or ally.is_dead:
+				continue
+			if not _satyr_gold_aura_applied.has(ally):
+				continue
+			var applied := int(_satyr_gold_aura_applied.get(ally, 0))
+			var remove := mini(applied, gold_bonus)
+			ally.current_attack = maxi(0, ally.current_attack - remove)
+			_satyr_gold_aura_applied[ally] = applied - remove
+			if _satyr_gold_aura_applied[ally] <= 0:
+				_satyr_gold_aura_applied.erase(ally)
+			ally.refresh_display()
+
+	# Crimson effects: all crimson satyrs deal 1 death burst; tier extras stack
+	if dead.data.satyr_color == SatyrColor.Hue.CRIMSON and not dead.data.is_satyr_token:
+		var crimson_dmg: int = sd.crimson_damage if sd != null else 5
+		if _get_mono_color(parent_board) == SatyrColor.Hue.CRIMSON:
+			crimson_dmg *= 2
+		for _i in range(knell_mult):
+			_satyr_burst_damage(crimson_dmg, opp_board, dead)
+		if dead.data.satyr_effect == SatyrEffect.Effect.CRIMSON_T3:
+			for _i in range(2 * knell_mult):
+				_satyr_burst_damage(crimson_dmg, opp_board, dead)
+		if dead.data.satyr_effect == SatyrEffect.Effect.CRIMSON_T2 and is_player and sd != null:
+			sd.crimson_damage += 1 * knell_mult
+			_log("%s: crimson_damage now %d!" % [dead.data.display_name, sd.crimson_damage])
+
+	# Gold effects
+	if dead.data.satyr_color == SatyrColor.Hue.GOLD and not dead.data.is_satyr_token:
+		if dead.data.satyr_effect == SatyrEffect.Effect.GOLD_T2 and is_player and sd != null:
+			sd.prismatic_percent += 5 * knell_mult
+			_log("%s: prismatic_percent now %d%%!" % [dead.data.display_name, sd.prismatic_percent])
+
+	# Green effects
+	if dead.data.satyr_color == SatyrColor.Hue.GREEN and not dead.data.is_satyr_token:
+		var green_bonus: int = sd.green_stat_bonus if sd != null else 1
+		if _get_mono_color(parent_board) == SatyrColor.Hue.GREEN:
+			green_bonus *= 2
+		match dead.data.satyr_effect:
+			SatyrEffect.Effect.GREEN:
+				var green_targets := parent_board.units.filter(func(u):
+					return is_instance_valid(u) and not u.is_dead \
+						and u.data.race == RaceType.Race.SATYR \
+						and u.data.satyr_color == SatyrColor.Hue.GREEN \
+						and u != dead)
+				if not green_targets.is_empty():
+					var targ: UnitCard = green_targets[randi() % green_targets.size()]
+					targ.current_attack += green_bonus * knell_mult
+					targ.current_health += green_bonus * knell_mult
+					targ.refresh_display()
+					_log("%s: deathrattle — %s +%d/+%d!" % [
+						dead.data.display_name, targ.data.display_name,
+						green_bonus * knell_mult, green_bonus * knell_mult])
+			SatyrEffect.Effect.GREEN_T2:
+				var green_data := load(GREEN_SATYR_PATH) as UnitData
+				if green_data != null:
+					for _i in range(2 * knell_mult):
+						_spawn_satyr_unit(green_data, parent_board)
+						_log("%s: Grove Caller — summoned Green Satyr!" % dead.data.display_name)
+			SatyrEffect.Effect.GREEN_T3:
+				if is_player and sd != null:
+					sd.green_stat_bonus += 1 * knell_mult
+					_log("%s: green_stat_bonus now %d!" % [dead.data.display_name, sd.green_stat_bonus])
+			SatyrEffect.Effect.GREEN_T4:
+				var path := dead.data.resource_path
+				var spawns := int(_eternal_grove_spawns.get(path, 0))
+				if spawns < 2:
+					_eternal_grove_spawns[path] = spawns + 1
+					_spawn_satyr_unit(dead.data, parent_board, dead)
+					_log("%s: Eternal Grove — resummoned! (%d/2)" % [dead.data.display_name, spawns + 1])
+
+	# Prismatic Reveler: summon a random color token when any satyr (non-token) dies
+	if not dead.data.is_satyr_token:
+		for ally in parent_board.units:
+			if not is_instance_valid(ally) or ally.is_dead:
+				continue
+			if ally.data.race != RaceType.Race.SATYR:
+				continue
+			if ally.data.satyr_effect != SatyrEffect.Effect.PRISMATIC_T4:
+				continue
+			var random_color: int = (randi() % 5) + 1
+			_spawn_satyr_token(random_color, parent_board)
+			_log("%s: Prismatic Reveler — summoned color %d token!" % [ally.data.display_name, random_color])
+			break

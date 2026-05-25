@@ -13,7 +13,7 @@ var gold_purchases: int = 0
 var silver_bonus_damage: int = 5
 var silver_purchases: int = 0
 
-# Green (The Grove): deathrattle passes +X/+X to another unit and chains. Base 1, +1 per purchase.
+# Green (The Grove): deathknell passes +X/+X to another unit and chains. Base 1, +1 per purchase.
 var green_stat_bonus: int = 1
 var green_purchases: int = 0
 
@@ -27,27 +27,27 @@ var prismatic_purchases: int = 0
 
 
 func crimson_cost() -> int:
-	return 4 + crimson_purchases * 2
+	return 4 + crimson_purchases * 2 + GameData.shop_cost_bonus
 
 
 func gold_cost() -> int:
-	return 4 + gold_purchases * 2
+	return 4 + gold_purchases * 2 + GameData.shop_cost_bonus
 
 
 func silver_cost() -> int:
-	return 4 + silver_purchases * 2
+	return 4 + silver_purchases * 2 + GameData.shop_cost_bonus
 
 
 func green_cost() -> int:
-	return 4 + green_purchases * 2
+	return 4 + green_purchases * 2 + GameData.shop_cost_bonus
 
 
 func black_cost() -> int:
-	return 4 + black_purchases * 2
+	return 4 + black_purchases * 2 + GameData.shop_cost_bonus
 
 
 func prismatic_cost() -> int:
-	return 6 + prismatic_purchases * 2
+	return 6 + prismatic_purchases * 2 + GameData.shop_cost_bonus
 
 
 func to_dict() -> Dictionary:

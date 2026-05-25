@@ -14,11 +14,11 @@ var spore_buff_purchases: int = 0
 
 
 func sporulation_cost() -> int:
-	return 4 + sporulation_purchases * 2
+	return 4 + sporulation_purchases * 2 + GameData.shop_cost_bonus
 
 
 func spore_buff_cost() -> int:
-	return 6 + spore_buff_purchases * 3
+	return 6 + spore_buff_purchases * 3 + GameData.shop_cost_bonus
 
 
 func to_dict() -> Dictionary:

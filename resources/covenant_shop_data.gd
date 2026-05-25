@@ -8,11 +8,11 @@ var berserk_purchases: int = 0
 
 
 func bond_share_cost() -> int:
-	return 5 + bond_share_purchases * 2
+	return 5 + bond_share_purchases * 2 + GameData.shop_cost_bonus
 
 
 func berserk_cost() -> int:
-	return 5 + berserk_purchases * 2
+	return 5 + berserk_purchases * 2 + GameData.shop_cost_bonus
 
 
 func to_dict() -> Dictionary:

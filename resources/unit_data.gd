@@ -17,6 +17,9 @@ extends Resource
 @export var reaper_effect: int = 0     # ReaperEffect.Effect
 @export var myconid_effect: int = 0    # MyconidEffect.Effect
 @export var covenant_effect: int = 0  # CovenantEffect.Effect
+@export var satyr_effect: int = 0     # SatyrEffect.Effect
+@export var satyr_color: int = 0      # SatyrColor.Hue
+@export var is_satyr_token: bool = false  # tokens don't trigger Prismatic Reveler's replacement effect
 @export var tier: int = 1
 @export var default_weapon: WeaponData = null
 @export var pre_equipped_spell: SpellData = null

@@ -84,6 +84,23 @@ const ALL_UNITS := [
 	preload("res://resources/units/elves/elf_scout.tres"),
 	# Covenant
 	preload("res://resources/units/covenant/covenant_initiate.tres"),
+	# Aztecs
+	preload("res://resources/units/aztecs/gilded_martyr.tres"),
+	preload("res://resources/units/aztecs/blood_witness.tres"),
+	preload("res://resources/units/aztecs/tribute_hunter.tres"),
+	preload("res://resources/units/aztecs/anointed_vessel.tres"),
+	preload("res://resources/units/aztecs/sun_idol.tres"),
+	preload("res://resources/units/aztecs/blood_feast.tres"),
+	preload("res://resources/units/aztecs/sacrifice_scout.tres"),
+	preload("res://resources/units/aztecs/vault_keeper.tres"),
+	preload("res://resources/units/aztecs/gold_effigy.tres"),
+	preload("res://resources/units/aztecs/tithe_warden.tres"),
+	preload("res://resources/units/aztecs/sun_seeker.tres"),
+	preload("res://resources/units/aztecs/the_devourer.tres"),
+	preload("res://resources/units/aztecs/blood_font.tres"),
+	preload("res://resources/units/aztecs/golden_sovereign.tres"),
+	preload("res://resources/units/aztecs/the_starved.tres"),
+	preload("res://resources/units/aztecs/sun_herald.tres"),
 ]
 
 var _rerolls_left: int = 3
@@ -99,7 +116,7 @@ func activate(tier: int = 1) -> void:
 	_current_tier = tier
 	_race_filter = RaceType.Race.NONE
 	visible = true
-	_rerolls_left = 3
+	_rerolls_left = GameData.discovery_rerolls
 	_deal_cards()
 
 
@@ -107,7 +124,7 @@ func activate_filtered(tier: int, race: int) -> void:
 	_current_tier = tier
 	_race_filter = race
 	visible = true
-	_rerolls_left = 3
+	_rerolls_left = GameData.discovery_rerolls
 	_deal_cards()
 
 
@@ -132,11 +149,13 @@ func _deal_cards() -> void:
 
 
 func _cards_for_tier(tier: int) -> int:
+	var base: int
 	match tier:
-		1: return 3
-		2: return 5
-		3: return 7
-		_: return 9
+		1: base = 3
+		2: base = 5
+		3: base = 7
+		_: base = 9
+	return maxi(1, base - GameData.discovery_reduction)
 
 
 func _input(event: InputEvent) -> void:

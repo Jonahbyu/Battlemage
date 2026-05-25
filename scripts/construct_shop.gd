@@ -169,8 +169,8 @@ func _refresh_info() -> void:
 
 	var cache_txt := "+%d at combat start" % _data.charge_cache if _data.charge_cache > 0 else "Not purchased"
 	_info_vbox.add_child(_make_stat_row("Charge Cache", cache_txt))
-	_info_vbox.add_child(_make_stat_row("Block/Charge", "%d dmg absorbed" % _data.block_per_charge))
-	_info_vbox.add_child(_make_stat_row("Counter/Charge", "%d dmg returned" % _data.counter_per_charge))
+	_info_vbox.add_child(_make_stat_row("Block/Charge", "1 dmg absorbed"))
+	_info_vbox.add_child(_make_stat_row("Counter/Charge", "1 dmg returned"))
 	_info_vbox.add_child(_make_stat_row("Recoil", "+%d per hit taken" % _data.recoil_charge))
 	var res_txt := "+%d per ally attack" % _data.resonance_charge if _data.resonance_charge > 0 else "Inactive"
 	_info_vbox.add_child(_make_stat_row("Resonance", res_txt))
@@ -196,22 +196,6 @@ func _refresh_upgrades() -> void:
 		"Constructs gain +3 Charge at combat start (currently +%d)." % _data.charge_cache,
 		_data.cache_cost(),
 		"cache"
-	))
-	_upgrades_vbox.add_child(HSeparator.new())
-
-	_upgrades_vbox.add_child(_make_upgrade_row(
-		"Block +1",
-		"Each Charge absorbs %d dmg when hit (currently %d)." % [_data.block_per_charge + 1, _data.block_per_charge],
-		_data.block_cost(),
-		"block"
-	))
-	_upgrades_vbox.add_child(HSeparator.new())
-
-	_upgrades_vbox.add_child(_make_upgrade_row(
-		"Counter Strike +1",
-		"Each spent Charge deals %d dmg back (currently %d)." % [_data.counter_per_charge + 1, _data.counter_per_charge],
-		_data.counter_cost(),
-		"counter"
 	))
 	_upgrades_vbox.add_child(HSeparator.new())
 

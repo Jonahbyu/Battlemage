@@ -4,10 +4,10 @@
 
 [resource]
 script = ExtResource("1")
-display_name = "Sun Jaguar"
-base_attack = 5
+display_name = "Blood Font"
+base_attack = 2
 base_health = 4
 keywords = 0
 race = 6
-aztec_effect = 7
+aztec_effect = 13
 tier = 3

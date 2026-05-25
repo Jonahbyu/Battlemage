@@ -189,7 +189,7 @@ func _refresh_info() -> void:
 		SILVER_COLOR))
 	_info_vbox.add_child(_make_stat_row(
 		"Green  (The Grove)",
-		"Deathrattle: +%d/+%d passed to next unit, chains" % [_data.green_stat_bonus, _data.green_stat_bonus],
+		"Deathknell: +%d/+%d passed to next unit, chains" % [_data.green_stat_bonus, _data.green_stat_bonus],
 		GREEN_COLOR))
 	_info_vbox.add_child(_make_stat_row(
 		"Black  (Forbidden Rites)",
@@ -240,7 +240,7 @@ func _refresh_upgrades() -> void:
 
 	_upgrades_vbox.add_child(_make_upgrade_row(
 		"Grove's Gift",
-		"Deathrattle passes +%d/+%d (currently +%d/+%d)." % [_data.green_stat_bonus + 1, _data.green_stat_bonus + 1, _data.green_stat_bonus, _data.green_stat_bonus],
+		"Deathknell passes +%d/+%d (currently +%d/+%d)." % [_data.green_stat_bonus + 1, _data.green_stat_bonus + 1, _data.green_stat_bonus, _data.green_stat_bonus],
 		_data.green_cost(), "green", GREEN_COLOR))
 	_upgrades_vbox.add_child(HSeparator.new())
 

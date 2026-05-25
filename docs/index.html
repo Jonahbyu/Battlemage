@@ -11,11 +11,6 @@ html, body, #canvas {
 	border: 0;
 }
 
-html, body {
-	width: 100%;
-	height: 100%;
-}
-
 body {
 	color: white;
 	background-color: black;
@@ -25,8 +20,6 @@ body {
 
 #canvas {
 	display: block;
-	width: 100% !important;
-	height: 100% !important;
 }
 
 #canvas:focus {
@@ -99,7 +92,7 @@ body {
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-
+<style>html,body{width:100%;height:100%;}#canvas{width:100%!important;height:100%!important;}</style><script>window.addEventListener('load',function(){if(screen.orientation&&screen.orientation.lock){screen.orientation.lock('landscape').catch(function(){});}});</script>
 	</head>
 	<body>
 		<canvas id="canvas">
@@ -118,10 +111,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":593804,"index.wasm":37695054},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
-if (screen.orientation && screen.orientation.lock) {
-	screen.orientation.lock('landscape').catch(function() {});
-}
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":803896,"index.wasm":37695054},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 

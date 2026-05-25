@@ -8,11 +8,11 @@ var max_echoes_purchases: int = 0
 
 
 func echo_stat_cost() -> int:
-	return 5 + echo_stat_purchases * 2
+	return 5 + echo_stat_purchases * 2 + GameData.shop_cost_bonus
 
 
 func max_echoes_cost() -> int:
-	return 5 + max_echoes_purchases * 2
+	return 5 + max_echoes_purchases * 2 + GameData.shop_cost_bonus
 
 
 func to_dict() -> Dictionary:

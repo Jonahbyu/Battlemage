@@ -4,10 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-display_name = "Temple Warden"
-base_attack = 2
-base_health = 6
-keywords = 1
-race = 6
-aztec_effect = 6
-tier = 3
+display_name = "Crimson Satyr"
+base_attack = 3
+base_health = 1
+keywords = 0
+race = 10
+satyr_effect = 1
+satyr_color = 1
+tier = 1

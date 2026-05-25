@@ -11,11 +11,11 @@ var aura_purchases: int = 0
 
 
 func damage_cost() -> int:
-	return 7
+	return 7 + GameData.shop_cost_bonus
 
 
 func aura_cost() -> int:
-	return 10 if aura_purchases == 0 else 5
+	return (10 if aura_purchases == 0 else 5) + GameData.shop_cost_bonus
 
 
 func to_dict() -> Dictionary:

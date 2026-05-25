@@ -1,7 +1,7 @@
 class_name AztecShopData
 extends Resource
 
-# How much ATK/HP each unit gains per gold saved at combat start
+# How much ATK/HP each Aztec unit gains per gold saved at combat start
 var blessing_rate: int = 1
 var blessing_purchases: int = 0
 
@@ -9,21 +9,24 @@ var blessing_purchases: int = 0
 var tribute_rate: int = 1
 var tribute_purchases: int = 0
 
-# Gold gained per tier of the sacrificed unit
+# Gold gained per tier of the sacrificed unit (Aztecs give 2x; Anointed Vessel 4x)
 var sacrifice_rate: int = 2
 var sacrifice_purchases: int = 0
 
+# Tracks total sacrifices + tributes this run for The Devourer
+var devourer_count: int = 0
+
 
 func blessing_cost() -> int:
-	return 5 + blessing_purchases * 2
+	return 5 + blessing_purchases * 2 + GameData.shop_cost_bonus
 
 
 func tribute_cost() -> int:
-	return 5 + tribute_purchases * 2
+	return 5 + tribute_purchases * 2 + GameData.shop_cost_bonus
 
 
 func sacrifice_cost() -> int:
-	return 5 + sacrifice_purchases * 2
+	return 5 + sacrifice_purchases * 2 + GameData.shop_cost_bonus
 
 
 func tribute_gold(player_tier: int) -> int:
@@ -38,6 +41,7 @@ func to_dict() -> Dictionary:
 		"tribute_purchases": tribute_purchases,
 		"sacrifice_rate": sacrifice_rate,
 		"sacrifice_purchases": sacrifice_purchases,
+		"devourer_count": devourer_count,
 	}
 
 
@@ -48,3 +52,4 @@ func from_dict(d: Dictionary) -> void:
 	tribute_purchases = int(d.get("tribute_purchases", 0))
 	sacrifice_rate = int(d.get("sacrifice_rate", 2))
 	sacrifice_purchases = int(d.get("sacrifice_purchases", 0))
+	devourer_count = int(d.get("devourer_count", 0))

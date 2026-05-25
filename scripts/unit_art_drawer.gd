@@ -52,6 +52,7 @@ func _race_color() -> Color:
 		RaceType.Race.REAPER:    return Color(0.14, 0.04, 0.24)  # deep purple
 		RaceType.Race.MYCONID:   return Color(0.24, 0.04, 0.20)  # dark fuchsia
 		RaceType.Race.AZTEC:     return Color(0.22, 0.14, 0.02)  # dark bronze
+		RaceType.Race.SATYR:     return Color(0.10, 0.18, 0.10)  # dark forest
 	return Color(0.18, 0.20, 0.28)
 
 func _fg_color() -> Color:
@@ -65,6 +66,7 @@ func _fg_color() -> Color:
 		RaceType.Race.REAPER:    return Color(0.84, 0.64, 1.00)  # violet
 		RaceType.Race.MYCONID:   return Color(1.00, 0.58, 0.88)  # hot pink
 		RaceType.Race.AZTEC:     return Color(1.00, 0.84, 0.14)  # bright gold
+		RaceType.Race.SATYR:     return Color(0.82, 0.94, 0.72)  # pale green
 	return Color(0.84, 0.84, 0.92)
 
 # ── Shape dispatch ─────────────────────────────────────────────────────────────
@@ -179,6 +181,22 @@ func _draw_unit_shape(cx: float, cy: float, w: float, h: float) -> void:
 		"Rite Spawner":       _draw_rite_spawner(cx, cy, w, h, fg, shd)
 		"Covenantling":       _draw_covenantling(cx, cy, w, h, fg, shd)
 		"Winder":             _draw_winder(cx, cy, w, h, fg, shd)
+		"Capacitor":          _draw_capacitor(cx, cy, w, h, fg, shd)
+		"Volt Striker":       _draw_volt_striker(cx, cy, w, h, fg, shd)
+		"Reigniter":          _draw_reigniter(cx, cy, w, h, fg, shd)
+		"Coil Weaver":        _draw_coil_weaver(cx, cy, w, h, fg, shd)
+		"Iron Sentinel":      _draw_iron_sentinel(cx, cy, w, h, fg, shd)
+		"Arc Coil":           _draw_arc_coil(cx, cy, w, h, fg, shd)
+		"Accumulator":        _draw_accumulator(cx, cy, w, h, fg, shd)
+		"Discharge Engine":   _draw_discharge_engine(cx, cy, w, h, fg, shd)
+		"Surge Conduit":      _draw_surge_conduit(cx, cy, w, h, fg, shd)
+		"Charge Siphon":      _draw_charge_siphon(cx, cy, w, h, fg, shd)
+		"Overload Core":      _draw_overload_core(cx, cy, w, h, fg, shd)
+		"Meltdown":           _draw_meltdown(cx, cy, w, h, fg, shd)
+		"Relay Node":         _draw_relay_node(cx, cy, w, h, fg, shd)
+		"Grand Capacitor":    _draw_grand_capacitor(cx, cy, w, h, fg, shd)
+		"Recharge Protocol":  _draw_recharge_protocol(cx, cy, w, h, fg, shd)
+		"Fission Core":       _draw_fission_core(cx, cy, w, h, fg, shd)
 		"Sporekeeper":        _draw_sporekeeper(cx, cy, w, h, fg, shd)
 		"Parasite":           _draw_parasite(cx, cy, w, h, fg, shd)
 		"Sporeling":          _draw_sporeling(cx, cy, w, h, fg, shd)
@@ -195,6 +213,49 @@ func _draw_unit_shape(cx: float, cy: float, w: float, h: float) -> void:
 		"Cultivator":         _draw_cultivator(cx, cy, w, h, fg, shd)
 		"Spore Sovereign":    _draw_spore_sovereign(cx, cy, w, h, fg, shd)
 		"Fungal Ascendant":   _draw_fungal_ascendant(cx, cy, w, h, fg, shd)
+		"Sacrifice Scout":    _draw_sacrifice_scout(cx, cy, w, h, fg, shd)
+		"Blood Witness":      _draw_blood_witness(cx, cy, w, h, fg, shd)
+		"Blood Font":         _draw_blood_font(cx, cy, w, h, fg, shd)
+		"Blood Feast":        _draw_blood_feast(cx, cy, w, h, fg, shd)
+		"Sun Idol":           _draw_sun_idol(cx, cy, w, h, fg, shd)
+		"Sun Seeker":         _draw_sun_seeker(cx, cy, w, h, fg, shd)
+		"Sun Herald":         _draw_sun_herald(cx, cy, w, h, fg, shd)
+		"Anointed Vessel":    _draw_anointed_vessel(cx, cy, w, h, fg, shd)
+		"Tithe Warden":       _draw_tithe_warden(cx, cy, w, h, fg, shd)
+		"Tribute Hunter":     _draw_tribute_hunter(cx, cy, w, h, fg, shd)
+		"Gold Effigy":        _draw_gold_effigy(cx, cy, w, h, fg, shd)
+		"Gold Idol":          _draw_gold_idol(cx, cy, w, h, fg, shd)
+		"Gilded Martyr":      _draw_gilded_martyr(cx, cy, w, h, fg, shd)
+		"Golden Sovereign":   _draw_golden_sovereign(cx, cy, w, h, fg, shd)
+		"Vault Keeper":       _draw_vault_keeper(cx, cy, w, h, fg, shd)
+		"The Devourer":       _draw_the_devourer(cx, cy, w, h, fg, shd)
+		"The Starved":        _draw_the_starved(cx, cy, w, h, fg, shd)
+		"Crimson Satyr":      _draw_crimson_satyr(cx, cy, w, h, fg, shd)
+		"Gold Satyr":         _draw_gold_satyr(cx, cy, w, h, fg, shd)
+		"Silver Satyr":       _draw_silver_satyr(cx, cy, w, h, fg, shd)
+		"Green Satyr":        _draw_green_satyr(cx, cy, w, h, fg, shd)
+		"Black Satyr":        _draw_black_satyr(cx, cy, w, h, fg, shd)
+		"Crimson Revenant":   _draw_crimson_revenant(cx, cy, w, h, fg, shd)
+		"Surge Herald":       _draw_surge_herald_satyr(cx, cy, w, h, fg, shd)
+		"Moon Striker":       _draw_moon_striker(cx, cy, w, h, fg, shd)
+		"Grove Caller":       _draw_grove_caller(cx, cy, w, h, fg, shd)
+		"Plague Sovereign":   _draw_plague_sovereign(cx, cy, w, h, fg, shd)
+		"Twin Pyre":          _draw_twin_pyre(cx, cy, w, h, fg, shd)
+		"Gilded Balance":     _draw_gilded_balance(cx, cy, w, h, fg, shd)
+		"Lunar Surge":        _draw_lunar_surge(cx, cy, w, h, fg, shd)
+		"Ancient Root":       _draw_ancient_root(cx, cy, w, h, fg, shd)
+		"Pestilence":         _draw_pestilence(cx, cy, w, h, fg, shd)
+		"Dark Reveler":       _draw_dark_reveler(cx, cy, w, h, fg, shd)
+		"Auric Mirror":       _draw_auric_mirror(cx, cy, w, h, fg, shd)
+		"Eternal Grove":      _draw_eternal_grove(cx, cy, w, h, fg, shd)
+		"Blood Hunger":       _draw_blood_hunger(cx, cy, w, h, fg, shd)
+		"Pack Sovereign":     _draw_pack_sovereign(cx, cy, w, h, fg, shd)
+		"Prismatic Reveler":  _draw_prismatic_reveler(cx, cy, w, h, fg, shd)
+		"Crimson Token":      _draw_crimson_token(cx, cy, w, h, fg, shd)
+		"Gold Token":         _draw_gold_token(cx, cy, w, h, fg, shd)
+		"Silver Token":       _draw_silver_token(cx, cy, w, h, fg, shd)
+		"Green Token":        _draw_green_token(cx, cy, w, h, fg, shd)
+		"Black Token":        _draw_black_token(cx, cy, w, h, fg, shd)
 		_:                    _draw_default(cx, cy, w, h, fg, shd)
 
 # ── Sword (Grunt / Warrior) ────────────────────────────────────────────────────
@@ -2045,3 +2106,1008 @@ func _draw_fungal_ascendant(cx: float, cy: float, w: float, h: float, fg: Color,
 	draw_polygon(PackedVector2Array([
 		Vector2(cx, cy - h*0.20), Vector2(cx - w*0.28, cy + h*0.08), Vector2(cx + w*0.28, cy + h*0.08),
 	]), PackedColorArray([fg, fg, fg]))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AZTEC UNITS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Sacrifice Scout (spear with feather tassels) ──────────────────────────────
+
+func _draw_sacrifice_scout(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_line(Vector2(cx - w*0.22 + 2, cy + h*0.44 + 2), Vector2(cx + w*0.14 + 2, cy - h*0.32 + 2), shd, 7)
+	draw_line(Vector2(cx - w*0.22, cy + h*0.44), Vector2(cx + w*0.14, cy - h*0.32), fg.lerp(shd, 0.38), 5)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.14 + 2, cy - h*0.32 + 2),
+		Vector2(cx + w*0.04 + 2, cy - h*0.22 + 2),
+		Vector2(cx + w*0.24 + 2, cy - h*0.20 + 2),
+	]), PackedColorArray([shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.14, cy - h*0.32),
+		Vector2(cx + w*0.04, cy - h*0.22),
+		Vector2(cx + w*0.24, cy - h*0.20),
+	]), PackedColorArray([fg.lightened(0.28), fg, fg]))
+	draw_line(Vector2(cx - w*0.14 + 1, cy + h*0.28 + 1), Vector2(cx - w*0.32 + 1, cy + h*0.20 + 1), shd, 3)
+	draw_line(Vector2(cx - w*0.14, cy + h*0.28), Vector2(cx - w*0.32, cy + h*0.20), Color(1.0, 0.84, 0.14, 0.9), 2)
+	draw_line(Vector2(cx - w*0.18 + 1, cy + h*0.36 + 1), Vector2(cx - w*0.36 + 1, cy + h*0.34 + 1), shd, 3)
+	draw_line(Vector2(cx - w*0.18, cy + h*0.36), Vector2(cx - w*0.36, cy + h*0.34), Color(1.0, 0.72, 0.10, 0.9), 2)
+
+# ── Blood Witness (eye with blood drop) ───────────────────────────────────────
+
+func _draw_blood_witness(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 2, cy - h*0.20 + 2), Vector2(cx + w*0.34 + 2, cy + 2),
+		Vector2(cx + 2, cy + h*0.14 + 2), Vector2(cx - w*0.34 + 2, cy + 2),
+	]), PackedColorArray([shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy - h*0.20), Vector2(cx + w*0.34, cy),
+		Vector2(cx, cy + h*0.14), Vector2(cx - w*0.34, cy),
+	]), PackedColorArray([fg, fg, fg, fg]))
+	draw_circle(Vector2(cx + 1, cy - h*0.03 + 1), w * 0.10, shd)
+	draw_circle(Vector2(cx, cy - h*0.03), w * 0.10, Color(0.55, 0.04, 0.04))
+	draw_circle(Vector2(cx, cy - h*0.03), w * 0.048, Color(0.02, 0.00, 0.00))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 2, cy + h*0.18 + 2),
+		Vector2(cx - w*0.052 + 2, cy + h*0.30 + 2),
+		Vector2(cx + w*0.052 + 2, cy + h*0.30 + 2),
+	]), PackedColorArray([shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy + h*0.18),
+		Vector2(cx - w*0.052, cy + h*0.30),
+		Vector2(cx + w*0.052, cy + h*0.30),
+	]), PackedColorArray([Color(0.82, 0.05, 0.05, 0.95), Color(0.82, 0.05, 0.05, 0.95), Color(0.82, 0.05, 0.05, 0.95)]))
+	draw_circle(Vector2(cx + 1, cy + h*0.30 + 1), w * 0.052, shd)
+	draw_circle(Vector2(cx, cy + h*0.30), w * 0.052, Color(0.82, 0.05, 0.05, 0.95))
+
+# ── Blood Font (chalice with drips) ───────────────────────────────────────────
+
+func _draw_blood_font(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.28 + 2, cy - h*0.32 + 2), Vector2(cx + w*0.28 + 2, cy - h*0.32 + 2),
+		Vector2(cx + w*0.20 + 2, cy + h*0.02 + 2), Vector2(cx - w*0.20 + 2, cy + h*0.02 + 2),
+	]), PackedColorArray([shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.28, cy - h*0.32), Vector2(cx + w*0.28, cy - h*0.32),
+		Vector2(cx + w*0.20, cy + h*0.02), Vector2(cx - w*0.20, cy + h*0.02),
+	]), PackedColorArray([fg, fg, fg.darkened(0.10), fg.darkened(0.10)]))
+	draw_rect(Rect2(cx - w*0.05 + 2, cy + h*0.02 + 2, w*0.10, h*0.16), shd)
+	draw_rect(Rect2(cx - w*0.05, cy + h*0.02, w*0.10, h*0.16), fg.darkened(0.15))
+	draw_rect(Rect2(cx - w*0.22 + 2, cy + h*0.18 + 2, w*0.44, h*0.08), shd)
+	draw_rect(Rect2(cx - w*0.22, cy + h*0.18, w*0.44, h*0.08), fg)
+	for i in range(3):
+		var dx := cx - w*0.10 + float(i) * w*0.10
+		draw_polygon(PackedVector2Array([
+			Vector2(dx + 1, cy + h*0.02 + 1),
+			Vector2(dx - w*0.038 + 1, cy + h*0.10 + 1),
+			Vector2(dx + w*0.038 + 1, cy + h*0.10 + 1),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(dx, cy + h*0.02),
+			Vector2(dx - w*0.038, cy + h*0.10),
+			Vector2(dx + w*0.038, cy + h*0.10),
+		]), PackedColorArray([Color(0.80, 0.05, 0.05, 0.92), Color(0.80, 0.05, 0.05, 0.92), Color(0.80, 0.05, 0.05, 0.92)]))
+		draw_circle(Vector2(dx + 1, cy + h*0.10 + 1), w * 0.038, shd)
+		draw_circle(Vector2(dx, cy + h*0.10), w * 0.038, Color(0.80, 0.05, 0.05, 0.92))
+
+# ── Blood Feast (open maw with fangs) ─────────────────────────────────────────
+
+func _draw_blood_feast(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_rect(Rect2(cx - w*0.34 + 2, cy - h*0.34 + 2, w*0.68, h*0.16), shd)
+	draw_rect(Rect2(cx - w*0.34, cy - h*0.34, w*0.68, h*0.16), fg.darkened(0.10))
+	draw_rect(Rect2(cx - w*0.34 + 2, cy + h*0.18 + 2, w*0.68, h*0.16), shd)
+	draw_rect(Rect2(cx - w*0.34, cy + h*0.18, w*0.68, h*0.16), fg.darkened(0.10))
+	for i in range(3):
+		var fx := cx - w*0.18 + float(i) * w*0.18
+		draw_polygon(PackedVector2Array([
+			Vector2(fx + 2, cy - h*0.18 + 2), Vector2(fx - w*0.07 + 2, cy - h*0.18 + 2), Vector2(fx - w*0.035 + 2, cy + h*0.08 + 2),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(fx, cy - h*0.18), Vector2(fx - w*0.07, cy - h*0.18), Vector2(fx - w*0.035, cy + h*0.08),
+		]), PackedColorArray([fg.lightened(0.22), fg.lightened(0.22), fg.lightened(0.22)]))
+	for i in range(2):
+		var fx := cx - w*0.10 + float(i) * w*0.20
+		draw_polygon(PackedVector2Array([
+			Vector2(fx + 2, cy + h*0.18 + 2), Vector2(fx - w*0.07 + 2, cy + h*0.18 + 2), Vector2(fx - w*0.035 + 2, cy - h*0.06 + 2),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(fx, cy + h*0.18), Vector2(fx - w*0.07, cy + h*0.18), Vector2(fx - w*0.035, cy - h*0.06),
+		]), PackedColorArray([fg.lightened(0.22), fg.lightened(0.22), fg.lightened(0.22)]))
+
+# ── Sun Idol (circle with 8 rays) ─────────────────────────────────────────────
+
+func _draw_sun_idol(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	for i in range(8):
+		var a := float(i) * TAU / 8.0
+		draw_line(Vector2(cx + cos(a)*w*0.20 + 2, cy + sin(a)*h*0.20 + 2), Vector2(cx + cos(a)*w*0.36 + 2, cy + sin(a)*h*0.36 + 2), shd, 5)
+		draw_line(Vector2(cx + cos(a)*w*0.20, cy + sin(a)*h*0.20), Vector2(cx + cos(a)*w*0.36, cy + sin(a)*h*0.36), fg, 4)
+	draw_circle(Vector2(cx + 2, cy + 2), w * 0.20, shd)
+	draw_circle(Vector2(cx, cy), w * 0.20, fg)
+	draw_circle(Vector2(cx - w*0.06, cy - h*0.06), w * 0.07, fg.lightened(0.38))
+
+# ── Sun Seeker (small sun + upward arrow) ─────────────────────────────────────
+
+func _draw_sun_seeker(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	for i in range(6):
+		var a := float(i) * TAU / 6.0
+		draw_line(Vector2(cx + cos(a)*w*0.12 + 1, cy - h*0.24 + sin(a)*h*0.12 + 1), Vector2(cx + cos(a)*w*0.20 + 1, cy - h*0.24 + sin(a)*h*0.20 + 1), shd, 3)
+		draw_line(Vector2(cx + cos(a)*w*0.12, cy - h*0.24 + sin(a)*h*0.12), Vector2(cx + cos(a)*w*0.20, cy - h*0.24 + sin(a)*h*0.20), fg, 2)
+	draw_circle(Vector2(cx + 1, cy - h*0.24 + 1), w * 0.12, shd)
+	draw_circle(Vector2(cx, cy - h*0.24), w * 0.12, fg)
+	draw_line(Vector2(cx + 2, cy + h*0.38 + 2), Vector2(cx + 2, cy + h*0.04 + 2), shd, 5)
+	draw_line(Vector2(cx, cy + h*0.38), Vector2(cx, cy + h*0.04), fg, 4)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 2, cy - h*0.04 + 2), Vector2(cx - w*0.12 + 2, cy + h*0.08 + 2), Vector2(cx + w*0.12 + 2, cy + h*0.08 + 2),
+	]), PackedColorArray([shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy - h*0.04), Vector2(cx - w*0.12, cy + h*0.08), Vector2(cx + w*0.12, cy + h*0.08),
+	]), PackedColorArray([fg.lightened(0.20), fg, fg]))
+
+# ── Sun Herald (large sun with 12 rays) ───────────────────────────────────────
+
+func _draw_sun_herald(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	for i in range(12):
+		var a := float(i) * TAU / 12.0
+		var outer := w * (0.40 if i % 2 == 0 else 0.32)
+		draw_line(Vector2(cx + cos(a)*w*0.17 + 1, cy + sin(a)*h*0.17 + 1), Vector2(cx + cos(a)*outer + 1, cy + sin(a)*(outer*h/w) + 1), shd, 4)
+		draw_line(Vector2(cx + cos(a)*w*0.17, cy + sin(a)*h*0.17), Vector2(cx + cos(a)*outer, cy + sin(a)*(outer*h/w)), fg, 3)
+	draw_circle(Vector2(cx + 2, cy + 2), w * 0.18, shd)
+	draw_circle(Vector2(cx, cy), w * 0.18, fg)
+	draw_circle(Vector2(cx, cy), w * 0.10, fg.lightened(0.36))
+	draw_circle(Vector2(cx - w*0.04, cy - h*0.04), w * 0.04, fg.lightened(0.55))
+
+# ── Anointed Vessel (urn shape) ───────────────────────────────────────────────
+
+func _draw_anointed_vessel(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy + h*0.14 + 2), w * 0.26, shd)
+	draw_circle(Vector2(cx, cy + h*0.14), w * 0.26, fg.darkened(0.10))
+	draw_rect(Rect2(cx - w*0.10 + 2, cy - h*0.14 + 2, w*0.20, h*0.16), shd)
+	draw_rect(Rect2(cx - w*0.10, cy - h*0.14, w*0.20, h*0.16), fg.darkened(0.15))
+	draw_rect(Rect2(cx - w*0.16 + 2, cy - h*0.24 + 2, w*0.32, h*0.10), shd)
+	draw_rect(Rect2(cx - w*0.16, cy - h*0.24, w*0.32, h*0.10), fg)
+	draw_circle(Vector2(cx + 1, cy - h*0.34 + 1), w * 0.060, shd)
+	draw_circle(Vector2(cx, cy - h*0.34), w * 0.060, Color(1.0, 0.95, 0.50, 0.90))
+	draw_rect(Rect2(cx - w*0.28 + 2, cy + h*0.36 + 2, w*0.56, h*0.08), shd)
+	draw_rect(Rect2(cx - w*0.28, cy + h*0.36, w*0.56, h*0.08), fg.darkened(0.08))
+
+# ── Tithe Warden (shield with sun emblem) ─────────────────────────────────────
+
+func _draw_tithe_warden(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 2, cy + h*0.38 + 2), Vector2(cx - w*0.28 + 2, cy - h*0.06 + 2),
+		Vector2(cx - w*0.28 + 2, cy - h*0.30 + 2), Vector2(cx + 2, cy - h*0.38 + 2),
+		Vector2(cx + w*0.28 + 2, cy - h*0.30 + 2), Vector2(cx + w*0.28 + 2, cy - h*0.06 + 2),
+	]), PackedColorArray([shd, shd, shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy + h*0.38), Vector2(cx - w*0.28, cy - h*0.06),
+		Vector2(cx - w*0.28, cy - h*0.30), Vector2(cx, cy - h*0.38),
+		Vector2(cx + w*0.28, cy - h*0.30), Vector2(cx + w*0.28, cy - h*0.06),
+	]), PackedColorArray([fg, fg, fg, fg, fg, fg]))
+	for i in range(6):
+		var a := float(i) * TAU / 6.0
+		draw_line(Vector2(cx + cos(a)*w*0.08 + 1, cy + sin(a)*h*0.08 + 1), Vector2(cx + cos(a)*w*0.16 + 1, cy + sin(a)*h*0.16 + 1), shd, 2.5)
+		draw_line(Vector2(cx + cos(a)*w*0.08, cy + sin(a)*h*0.08), Vector2(cx + cos(a)*w*0.16, cy + sin(a)*h*0.16), shd.darkened(0.5), 2)
+	draw_circle(Vector2(cx + 1, cy + 1), w * 0.08, shd)
+	draw_circle(Vector2(cx, cy), w * 0.08, shd.darkened(0.45))
+
+# ── Tribute Hunter (javelin) ──────────────────────────────────────────────────
+
+func _draw_tribute_hunter(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_line(Vector2(cx - w*0.28 + 2, cy + h*0.44 + 2), Vector2(cx + w*0.24 + 2, cy - h*0.42 + 2), shd, 5)
+	draw_line(Vector2(cx - w*0.28, cy + h*0.44), Vector2(cx + w*0.24, cy - h*0.42), fg.lerp(shd, 0.30), 4)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.24 + 2, cy - h*0.42 + 2),
+		Vector2(cx + w*0.12 + 2, cy - h*0.30 + 2),
+		Vector2(cx + w*0.32 + 2, cy - h*0.28 + 2),
+	]), PackedColorArray([shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.24, cy - h*0.42),
+		Vector2(cx + w*0.12, cy - h*0.30),
+		Vector2(cx + w*0.32, cy - h*0.28),
+	]), PackedColorArray([fg.lightened(0.25), fg, fg]))
+
+# ── Gold Effigy (idol figure) ─────────────────────────────────────────────────
+
+func _draw_gold_effigy(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy - h*0.26 + 2), w * 0.12, shd)
+	draw_circle(Vector2(cx, cy - h*0.26), w * 0.12, fg)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 2, cy - h*0.44 + 2), Vector2(cx - w*0.12 + 2, cy - h*0.30 + 2), Vector2(cx + w*0.12 + 2, cy - h*0.30 + 2),
+	]), PackedColorArray([shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy - h*0.44), Vector2(cx - w*0.12, cy - h*0.30), Vector2(cx + w*0.12, cy - h*0.30),
+	]), PackedColorArray([fg.lightened(0.22), fg, fg]))
+	draw_rect(Rect2(cx - w*0.12 + 2, cy - h*0.14 + 2, w*0.24, h*0.30), shd)
+	draw_rect(Rect2(cx - w*0.12, cy - h*0.14, w*0.24, h*0.30), fg.darkened(0.10))
+	draw_line(Vector2(cx - w*0.12 + 1, cy - h*0.06 + 1), Vector2(cx - w*0.32 + 1, cy + h*0.06 + 1), shd, 7)
+	draw_line(Vector2(cx - w*0.12, cy - h*0.06), Vector2(cx - w*0.32, cy + h*0.06), fg, 5)
+	draw_line(Vector2(cx + w*0.12 + 1, cy - h*0.06 + 1), Vector2(cx + w*0.32 + 1, cy + h*0.06 + 1), shd, 7)
+	draw_line(Vector2(cx + w*0.12, cy - h*0.06), Vector2(cx + w*0.32, cy + h*0.06), fg, 5)
+
+# ── Gold Idol (coin with face) ────────────────────────────────────────────────
+
+func _draw_gold_idol(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy + 2), w * 0.32, shd)
+	draw_circle(Vector2(cx, cy), w * 0.32, fg)
+	draw_circle(Vector2(cx, cy), w * 0.28, fg.darkened(0.08))
+	draw_circle(Vector2(cx - w*0.10 + 1, cy - h*0.06 + 1), w * 0.050, shd)
+	draw_circle(Vector2(cx - w*0.10, cy - h*0.06), w * 0.050, shd.darkened(0.50))
+	draw_circle(Vector2(cx + w*0.10 + 1, cy - h*0.06 + 1), w * 0.050, shd)
+	draw_circle(Vector2(cx + w*0.10, cy - h*0.06), w * 0.050, shd.darkened(0.50))
+	draw_line(Vector2(cx - w*0.08 + 1, cy + h*0.08 + 1), Vector2(cx + w*0.08 + 1, cy + h*0.08 + 1), shd, 2.5)
+	draw_line(Vector2(cx - w*0.08, cy + h*0.08), Vector2(cx + w*0.08, cy + h*0.08), shd.darkened(0.40), 2)
+
+# ── Gilded Martyr (halo + dagger) ─────────────────────────────────────────────
+
+func _draw_gilded_martyr(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_arc(Vector2(cx + 2, cy - h*0.08 + 2), w * 0.24, 0, TAU, 20, shd, w*0.06)
+	draw_arc(Vector2(cx, cy - h*0.08), w * 0.24, 0, TAU, 20, fg, w*0.06)
+	draw_line(Vector2(cx + 2, cy - h*0.38 + 2), Vector2(cx + 2, cy + h*0.30 + 2), shd, 6)
+	draw_line(Vector2(cx, cy - h*0.38), Vector2(cx, cy + h*0.30), fg.lerp(shd, 0.32), 4)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 2, cy - h*0.38 + 2), Vector2(cx - w*0.05 + 2, cy - h*0.30 + 2), Vector2(cx + w*0.05 + 2, cy - h*0.30 + 2),
+	]), PackedColorArray([shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy - h*0.38), Vector2(cx - w*0.05, cy - h*0.30), Vector2(cx + w*0.05, cy - h*0.30),
+	]), PackedColorArray([fg.lightened(0.22), fg, fg]))
+	draw_rect(Rect2(cx - w*0.18 + 2, cy - h*0.05 + 2, w*0.36, h*0.05), shd)
+	draw_rect(Rect2(cx - w*0.18, cy - h*0.05, w*0.36, h*0.05), fg.lightened(0.10))
+	draw_circle(Vector2(cx + 1, cy + h*0.32 + 1), w * 0.048, shd)
+	draw_circle(Vector2(cx, cy + h*0.32), w * 0.048, fg)
+
+# ── Golden Sovereign (stepped pyramid) ────────────────────────────────────────
+
+func _draw_golden_sovereign(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	var widths := [w*0.68, w*0.50, w*0.30]
+	var tops := [cy + h*0.10, cy - h*0.08, cy - h*0.26]
+	for i in range(3):
+		draw_rect(Rect2(cx - widths[i]*0.5 + 2, tops[i] + 2, widths[i], h*0.18), shd)
+		draw_rect(Rect2(cx - widths[i]*0.5, tops[i], widths[i], h*0.18), fg.lerp(fg.lightened(0.18), float(i) * 0.3))
+	for i in range(8):
+		var a := float(i) * TAU / 8.0
+		draw_line(Vector2(cx + cos(a)*w*0.07 + 1, cy - h*0.36 + sin(a)*h*0.07 + 1), Vector2(cx + cos(a)*w*0.13 + 1, cy - h*0.36 + sin(a)*h*0.13 + 1), shd, 2)
+		draw_line(Vector2(cx + cos(a)*w*0.07, cy - h*0.36 + sin(a)*h*0.07), Vector2(cx + cos(a)*w*0.13, cy - h*0.36 + sin(a)*h*0.13), Color(1.0, 0.95, 0.40, 0.9), 1.5)
+	draw_circle(Vector2(cx + 1, cy - h*0.36 + 1), w * 0.07, shd)
+	draw_circle(Vector2(cx, cy - h*0.36), w * 0.07, Color(1.0, 0.95, 0.40, 0.95))
+
+# ── Vault Keeper (chest with keyhole) ─────────────────────────────────────────
+
+func _draw_vault_keeper(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_rect(Rect2(cx - w*0.32 + 2, cy - h*0.04 + 2, w*0.64, h*0.34), shd)
+	draw_rect(Rect2(cx - w*0.32, cy - h*0.04, w*0.64, h*0.34), fg.darkened(0.12))
+	draw_rect(Rect2(cx - w*0.34 + 2, cy - h*0.24 + 2, w*0.68, h*0.20), shd)
+	draw_rect(Rect2(cx - w*0.34, cy - h*0.24, w*0.68, h*0.20), fg)
+	draw_line(Vector2(cx - w*0.30 + 1, cy - h*0.04 + 1), Vector2(cx + w*0.30 + 1, cy - h*0.04 + 1), shd, 2.5)
+	draw_line(Vector2(cx - w*0.30, cy - h*0.04), Vector2(cx + w*0.30, cy - h*0.04), fg.darkened(0.30), 2)
+	draw_circle(Vector2(cx + 1, cy + h*0.08 + 1), w * 0.068, shd)
+	draw_circle(Vector2(cx, cy + h*0.08), w * 0.068, shd.darkened(0.55))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 1, cy + h*0.06 + 1), Vector2(cx - w*0.038 + 1, cy + h*0.20 + 1), Vector2(cx + w*0.038 + 1, cy + h*0.20 + 1),
+	]), PackedColorArray([shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy + h*0.06), Vector2(cx - w*0.038, cy + h*0.20), Vector2(cx + w*0.038, cy + h*0.20),
+	]), PackedColorArray([shd.darkened(0.55), shd.darkened(0.55), shd.darkened(0.55)]))
+
+# ── The Devourer (open maw with fangs) ────────────────────────────────────────
+
+func _draw_the_devourer(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_arc(Vector2(cx + 2, cy + h*0.02 + 2), w * 0.34, PI, TAU, 20, shd, w*0.13)
+	draw_arc(Vector2(cx, cy + h*0.02), w * 0.34, PI, TAU, 20, fg.darkened(0.10), w*0.13)
+	draw_arc(Vector2(cx + 2, cy + h*0.02 + 2), w * 0.34, 0, PI, 20, shd, w*0.13)
+	draw_arc(Vector2(cx, cy + h*0.02), w * 0.34, 0, PI, 20, fg.darkened(0.10), w*0.13)
+	draw_circle(Vector2(cx + 1, cy + h*0.02 + 1), w * 0.22, shd)
+	draw_circle(Vector2(cx, cy + h*0.02), w * 0.22, Color(0.04, 0.00, 0.00))
+	for i in range(4):
+		var a := PI + float(i + 0.5) * PI / 4.0
+		var tx := cx + cos(a) * w*0.26
+		var ty := cy + h*0.02 + sin(a) * h*0.26
+		draw_polygon(PackedVector2Array([
+			Vector2(tx + 2, ty + 2), Vector2(tx - w*0.06 + 2, ty + h*0.14 + 2), Vector2(tx + w*0.06 + 2, ty + h*0.14 + 2),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(tx, ty), Vector2(tx - w*0.06, ty + h*0.14), Vector2(tx + w*0.06, ty + h*0.14),
+		]), PackedColorArray([fg.lightened(0.30), fg, fg]))
+
+# ── The Starved (ribcage) ─────────────────────────────────────────────────────
+
+func _draw_the_starved(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_line(Vector2(cx + 2, cy - h*0.40 + 2), Vector2(cx + 2, cy + h*0.42 + 2), shd, 5)
+	draw_line(Vector2(cx, cy - h*0.40), Vector2(cx, cy + h*0.42), fg.darkened(0.22), 3)
+	for i in range(3):
+		var ry := cy - h*0.16 + float(i) * h*0.20
+		draw_arc(Vector2(cx + 2, ry + 2), w * 0.28, PI * 0.5, PI * 1.5, 12, shd, 4)
+		draw_arc(Vector2(cx, ry), w * 0.28, PI * 0.5, PI * 1.5, 12, fg, 3)
+		draw_arc(Vector2(cx + 2, ry + 2), w * 0.28, -PI * 0.5, PI * 0.5, 12, shd, 4)
+		draw_arc(Vector2(cx, ry), w * 0.28, -PI * 0.5, PI * 0.5, 12, fg, 3)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SATYR UNITS
+# ══════════════════════════════════════════════════════════════════════════════
+
+func _draw_satyr_horns(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color, accent: Color) -> void:
+	draw_arc(Vector2(cx - w*0.10 + 2, cy + h*0.04 + 2), w * 0.26, PI * 0.88, PI * 1.72, 14, shd, w*0.09)
+	draw_arc(Vector2(cx - w*0.10, cy + h*0.04), w * 0.26, PI * 0.88, PI * 1.72, 14, accent, w*0.09)
+	draw_arc(Vector2(cx + w*0.10 + 2, cy + h*0.04 + 2), w * 0.26, PI * 1.28, PI * 2.12, 14, shd, w*0.09)
+	draw_arc(Vector2(cx + w*0.10, cy + h*0.04), w * 0.26, PI * 1.28, PI * 2.12, 14, accent, w*0.09)
+	draw_circle(Vector2(cx + 2, cy + h*0.12 + 2), w * 0.14, shd)
+	draw_circle(Vector2(cx, cy + h*0.12), w * 0.14, fg)
+	draw_circle(Vector2(cx - w*0.04, cy + h*0.08), w * 0.06, fg.lightened(0.28))
+
+func _draw_satyr_token(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color, accent: Color) -> void:
+	draw_arc(Vector2(cx - w*0.08 + 2, cy + h*0.06 + 2), w * 0.18, PI * 0.88, PI * 1.72, 10, shd, w*0.07)
+	draw_arc(Vector2(cx - w*0.08, cy + h*0.06), w * 0.18, PI * 0.88, PI * 1.72, 10, accent, w*0.07)
+	draw_arc(Vector2(cx + w*0.08 + 2, cy + h*0.06 + 2), w * 0.18, PI * 1.28, PI * 2.12, 10, shd, w*0.07)
+	draw_arc(Vector2(cx + w*0.08, cy + h*0.06), w * 0.18, PI * 1.28, PI * 2.12, 10, accent, w*0.07)
+	draw_circle(Vector2(cx + 2, cy + h*0.14 + 2), w * 0.10, shd)
+	draw_circle(Vector2(cx, cy + h*0.14), w * 0.10, fg)
+
+# ── Base Satyrs (horn variants by color) ──────────────────────────────────────
+
+func _draw_crimson_satyr(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_horns(cx, cy, w, h, fg, shd, Color(0.90, 0.15, 0.15))
+
+func _draw_gold_satyr(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_horns(cx, cy, w, h, fg, shd, Color(1.00, 0.82, 0.10))
+
+func _draw_silver_satyr(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_horns(cx, cy, w, h, fg, shd, Color(0.80, 0.88, 0.95))
+
+func _draw_green_satyr(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_horns(cx, cy, w, h, fg, shd, Color(0.20, 0.88, 0.25))
+
+func _draw_black_satyr(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_horns(cx, cy, w, h, fg, shd, Color(0.38, 0.38, 0.44))
+
+# ── Satyr Tokens ──────────────────────────────────────────────────────────────
+
+func _draw_crimson_token(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_token(cx, cy, w, h, fg, shd, Color(0.90, 0.15, 0.15))
+
+func _draw_gold_token(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_token(cx, cy, w, h, fg, shd, Color(1.00, 0.82, 0.10))
+
+func _draw_silver_token(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_token(cx, cy, w, h, fg, shd, Color(0.80, 0.88, 0.95))
+
+func _draw_green_token(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_token(cx, cy, w, h, fg, shd, Color(0.20, 0.88, 0.25))
+
+func _draw_black_token(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	_draw_satyr_token(cx, cy, w, h, fg, shd, Color(0.38, 0.38, 0.44))
+
+# ── Crimson Revenant (ghost with horns) ───────────────────────────────────────
+
+func _draw_crimson_revenant(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy - h*0.10 + 2), w * 0.22, shd)
+	draw_circle(Vector2(cx, cy - h*0.10), w * 0.22, fg)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.22, cy + h*0.06), Vector2(cx - w*0.22, cy + h*0.42),
+		Vector2(cx - w*0.11, cy + h*0.30), Vector2(cx, cy + h*0.42),
+		Vector2(cx + w*0.11, cy + h*0.30), Vector2(cx + w*0.22, cy + h*0.42),
+		Vector2(cx + w*0.22, cy + h*0.06),
+	]), PackedColorArray([fg, fg, fg, fg, fg, fg, fg]))
+	draw_circle(Vector2(cx - w*0.08, cy - h*0.14), w * 0.050, shd.darkened(0.5))
+	draw_circle(Vector2(cx + w*0.08, cy - h*0.14), w * 0.050, shd.darkened(0.5))
+	draw_arc(Vector2(cx - w*0.12 + 2, cy - h*0.22 + 2), w * 0.14, PI * 1.1, PI * 1.8, 10, shd, w*0.07)
+	draw_arc(Vector2(cx - w*0.12, cy - h*0.22), w * 0.14, PI * 1.1, PI * 1.8, 10, Color(0.90, 0.15, 0.15), w*0.07)
+	draw_arc(Vector2(cx + w*0.12 + 2, cy - h*0.22 + 2), w * 0.14, PI * 1.2, PI * 1.9, 10, shd, w*0.07)
+	draw_arc(Vector2(cx + w*0.12, cy - h*0.22), w * 0.14, PI * 1.2, PI * 1.9, 10, Color(0.90, 0.15, 0.15), w*0.07)
+
+# ── Surge Herald (lightning bolt) ─────────────────────────────────────────────
+
+func _draw_surge_herald_satyr(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.12 + 2, cy - h*0.42 + 2), Vector2(cx - w*0.18 + 2, cy + h*0.02 + 2),
+		Vector2(cx + w*0.06 + 2, cy + h*0.02 + 2), Vector2(cx - w*0.12 + 2, cy + h*0.42 + 2),
+		Vector2(cx + w*0.22 + 2, cy - h*0.02 + 2), Vector2(cx + w*0.02 + 2, cy - h*0.02 + 2),
+	]), PackedColorArray([shd, shd, shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.12, cy - h*0.42), Vector2(cx - w*0.18, cy + h*0.02),
+		Vector2(cx + w*0.06, cy + h*0.02), Vector2(cx - w*0.12, cy + h*0.42),
+		Vector2(cx + w*0.22, cy - h*0.02), Vector2(cx + w*0.02, cy - h*0.02),
+	]), PackedColorArray([Color(1.0,0.85,0.25), Color(1.0,0.85,0.25), Color(1.0,0.85,0.25), Color(1.0,0.85,0.25), Color(1.0,0.85,0.25), Color(1.0,0.85,0.25)]))
+
+# ── Moon Striker (crescent moon with strike lines) ────────────────────────────
+
+func _draw_moon_striker(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy + 2), w * 0.30, shd)
+	draw_circle(Vector2(cx, cy), w * 0.30, fg)
+	draw_circle(Vector2(cx + w*0.12, cy - h*0.10), w * 0.22, _race_color())
+	for i in range(3):
+		var ox := cx + w*0.20 + float(i) * w*0.08
+		draw_line(Vector2(ox + 1, cy - h*0.20 + 1), Vector2(ox - w*0.14 + 1, cy + h*0.18 + 1), shd, 3)
+		draw_line(Vector2(ox, cy - h*0.20), Vector2(ox - w*0.14, cy + h*0.18), fg.lightened(0.22), 2)
+
+# ── Grove Caller (tree) ───────────────────────────────────────────────────────
+
+func _draw_grove_caller(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_rect(Rect2(cx - w*0.07 + 2, cy + h*0.08 + 2, w*0.14, h*0.34), shd)
+	draw_rect(Rect2(cx - w*0.07, cy + h*0.08, w*0.14, h*0.34), fg.darkened(0.20))
+	draw_circle(Vector2(cx + 2, cy - h*0.10 + 2), w * 0.28, shd)
+	draw_circle(Vector2(cx, cy - h*0.10), w * 0.28, fg)
+	draw_circle(Vector2(cx - w*0.08, cy - h*0.16), w * 0.10, fg.lightened(0.28))
+	draw_line(Vector2(cx - w*0.22 + 1, cy + h*0.36 + 1), Vector2(cx + w*0.22 + 1, cy + h*0.36 + 1), shd, 5)
+	draw_line(Vector2(cx - w*0.22, cy + h*0.36), Vector2(cx + w*0.22, cy + h*0.36), fg.darkened(0.15), 4)
+
+# ── Plague Sovereign (crowned skull) ─────────────────────────────────────────
+
+func _draw_plague_sovereign(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy - h*0.06 + 2), w * 0.24, shd)
+	draw_circle(Vector2(cx, cy - h*0.06), w * 0.24, fg)
+	draw_rect(Rect2(cx - w*0.16 + 2, cy + h*0.14 + 2, w*0.32, h*0.12), shd)
+	draw_rect(Rect2(cx - w*0.16, cy + h*0.14, w*0.32, h*0.12), fg.darkened(0.08))
+	draw_circle(Vector2(cx - w*0.10 + 1, cy - h*0.10 + 1), w * 0.072, shd)
+	draw_circle(Vector2(cx - w*0.10, cy - h*0.10), w * 0.072, shd.darkened(0.55))
+	draw_circle(Vector2(cx + w*0.10 + 1, cy - h*0.10 + 1), w * 0.072, shd)
+	draw_circle(Vector2(cx + w*0.10, cy - h*0.10), w * 0.072, shd.darkened(0.55))
+	for i in range(3):
+		var px := cx - w*0.14 + float(i) * w*0.14
+		draw_polygon(PackedVector2Array([
+			Vector2(px + 2, cy - h*0.44 + 2), Vector2(px - w*0.07 + 2, cy - h*0.30 + 2), Vector2(px + w*0.07 + 2, cy - h*0.30 + 2),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(px, cy - h*0.44), Vector2(px - w*0.07, cy - h*0.30), Vector2(px + w*0.07, cy - h*0.30),
+		]), PackedColorArray([fg, fg, fg]))
+	draw_rect(Rect2(cx - w*0.22 + 2, cy - h*0.32 + 2, w*0.44, h*0.08), shd)
+	draw_rect(Rect2(cx - w*0.22, cy - h*0.32, w*0.44, h*0.08), fg.darkened(0.05))
+
+# ── Twin Pyre (two flames side by side) ───────────────────────────────────────
+
+func _draw_twin_pyre(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	for side in [-1.0, 1.0]:
+		var ox: float = cx + side * w*0.18
+		draw_polygon(PackedVector2Array([
+			Vector2(ox + 1, cy - h*0.38 + 1), Vector2(ox + side*w*0.18 + 1, cy - h*0.06 + 1),
+			Vector2(ox + side*w*0.12 + 1, cy + h*0.32 + 1), Vector2(ox - side*w*0.12 + 1, cy + h*0.32 + 1),
+			Vector2(ox - side*w*0.18 + 1, cy - h*0.06 + 1),
+		]), PackedColorArray([shd, shd, shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(ox, cy - h*0.38), Vector2(ox + side*w*0.18, cy - h*0.06),
+			Vector2(ox + side*w*0.12, cy + h*0.32), Vector2(ox - side*w*0.12, cy + h*0.32),
+			Vector2(ox - side*w*0.18, cy - h*0.06),
+		]), PackedColorArray([Color(1,0.55,0.05), Color(1,0.55,0.05), Color(1,0.55,0.05), Color(1,0.55,0.05), Color(1,0.55,0.05)]))
+		draw_polygon(PackedVector2Array([
+			Vector2(ox, cy - h*0.28), Vector2(ox + side*w*0.10, cy + h*0.08),
+			Vector2(ox - side*w*0.10, cy + h*0.08),
+		]), PackedColorArray([Color(1,1,0.80,0.9), Color(1,0.85,0.25), Color(1,0.85,0.25)]))
+
+# ── Gilded Balance (balance beam with pans) ───────────────────────────────────
+
+func _draw_gilded_balance(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_line(Vector2(cx + 2, cy - h*0.34 + 2), Vector2(cx + 2, cy + h*0.36 + 2), shd, 5)
+	draw_line(Vector2(cx, cy - h*0.34), Vector2(cx, cy + h*0.36), fg.darkened(0.20), 3)
+	draw_rect(Rect2(cx - w*0.22 + 2, cy + h*0.30 + 2, w*0.44, h*0.08), shd)
+	draw_rect(Rect2(cx - w*0.22, cy + h*0.30, w*0.44, h*0.08), fg.darkened(0.10))
+	draw_line(Vector2(cx - w*0.32 + 2, cy - h*0.20 + 2), Vector2(cx + w*0.32 + 2, cy - h*0.20 + 2), shd, 5)
+	draw_line(Vector2(cx - w*0.32, cy - h*0.20), Vector2(cx + w*0.32, cy - h*0.20), Color(1.0, 0.82, 0.10), 3)
+	draw_line(Vector2(cx - w*0.28 + 1, cy - h*0.20 + 1), Vector2(cx - w*0.28 + 1, cy - h*0.04 + 1), shd, 2)
+	draw_line(Vector2(cx - w*0.28, cy - h*0.20), Vector2(cx - w*0.28, cy - h*0.04), fg.darkened(0.10), 1.5)
+	draw_line(Vector2(cx + w*0.28 + 1, cy - h*0.20 + 1), Vector2(cx + w*0.28 + 1, cy + h*0.06 + 1), shd, 2)
+	draw_line(Vector2(cx + w*0.28, cy - h*0.20), Vector2(cx + w*0.28, cy + h*0.06), fg.darkened(0.10), 1.5)
+	draw_arc(Vector2(cx - w*0.28 + 2, cy - h*0.04 + 2), w * 0.12, 0, PI, 12, shd, 4)
+	draw_arc(Vector2(cx - w*0.28, cy - h*0.04), w * 0.12, 0, PI, 12, Color(1.0, 0.82, 0.10), 3)
+	draw_arc(Vector2(cx + w*0.28 + 2, cy + h*0.06 + 2), w * 0.12, 0, PI, 12, shd, 4)
+	draw_arc(Vector2(cx + w*0.28, cy + h*0.06), w * 0.12, 0, PI, 12, Color(1.0, 0.82, 0.10), 3)
+
+# ── Lunar Surge (crescent + waves) ────────────────────────────────────────────
+
+func _draw_lunar_surge(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy - h*0.14 + 2), w * 0.26, shd)
+	draw_circle(Vector2(cx, cy - h*0.14), w * 0.26, fg)
+	draw_circle(Vector2(cx + w*0.12, cy - h*0.20), w * 0.18, _race_color())
+	for i in range(3):
+		var wy := cy + h*0.14 + float(i) * h*0.14
+		var wr := w * (0.28 - float(i) * 0.06)
+		draw_arc(Vector2(cx - wr*0.5 + 1, wy + 1), wr * 0.5, 0, PI, 10, shd, 3)
+		draw_arc(Vector2(cx + wr*0.5 + 1, wy + 1), wr * 0.5, PI, TAU, 10, shd, 3)
+		draw_arc(Vector2(cx - wr*0.5, wy), wr * 0.5, 0, PI, 10, fg, 2.5)
+		draw_arc(Vector2(cx + wr*0.5, wy), wr * 0.5, PI, TAU, 10, fg, 2.5)
+
+# ── Ancient Root (gnarled roots) ──────────────────────────────────────────────
+
+func _draw_ancient_root(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_rect(Rect2(cx - w*0.10 + 2, cy - h*0.30 + 2, w*0.20, h*0.50), shd)
+	draw_rect(Rect2(cx - w*0.10, cy - h*0.30, w*0.20, h*0.50), fg.darkened(0.15))
+	draw_arc(Vector2(cx - w*0.22 + 2, cy + h*0.24 + 2), w * 0.18, -PI*0.5, PI*0.5, 10, shd, w*0.09)
+	draw_arc(Vector2(cx - w*0.22, cy + h*0.24), w * 0.18, -PI*0.5, PI*0.5, 10, fg, w*0.09)
+	draw_arc(Vector2(cx + w*0.22 + 2, cy + h*0.14 + 2), w * 0.18, PI*0.5, PI*1.5, 10, shd, w*0.09)
+	draw_arc(Vector2(cx + w*0.22, cy + h*0.14), w * 0.18, PI*0.5, PI*1.5, 10, fg, w*0.09)
+	draw_arc(Vector2(cx - w*0.30 + 2, cy + h*0.08 + 2), w * 0.14, -PI*0.4, PI*0.4, 8, shd, w*0.07)
+	draw_arc(Vector2(cx - w*0.30, cy + h*0.08), w * 0.14, -PI*0.4, PI*0.4, 8, fg, w*0.07)
+	draw_circle(Vector2(cx + 2, cy - h*0.36 + 2), w * 0.090, shd)
+	draw_circle(Vector2(cx, cy - h*0.36), w * 0.090, fg.lightened(0.20))
+	draw_circle(Vector2(cx - w*0.06, cy - h*0.40), w * 0.040, fg.lightened(0.40))
+
+# ── Pestilence (skull with green drips) ───────────────────────────────────────
+
+func _draw_pestilence(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy - h*0.10 + 2), w * 0.24, shd)
+	draw_circle(Vector2(cx, cy - h*0.10), w * 0.24, fg)
+	draw_rect(Rect2(cx - w*0.16 + 2, cy + h*0.10 + 2, w*0.32, h*0.12), shd)
+	draw_rect(Rect2(cx - w*0.16, cy + h*0.10, w*0.32, h*0.12), fg.darkened(0.08))
+	draw_circle(Vector2(cx - w*0.10 + 1, cy - h*0.14 + 1), w * 0.070, shd)
+	draw_circle(Vector2(cx - w*0.10, cy - h*0.14), w * 0.070, shd.darkened(0.55))
+	draw_circle(Vector2(cx + w*0.10 + 1, cy - h*0.14 + 1), w * 0.070, shd)
+	draw_circle(Vector2(cx + w*0.10, cy - h*0.14), w * 0.070, shd.darkened(0.55))
+	var drip_c := Color(0.20, 0.76, 0.14, 0.95)
+	for i in range(3):
+		var dx := cx - w*0.10 + float(i) * w*0.10
+		draw_polygon(PackedVector2Array([
+			Vector2(dx + 1, cy + h*0.22 + 1), Vector2(dx - w*0.040 + 1, cy + h*0.36 + 1), Vector2(dx + w*0.040 + 1, cy + h*0.36 + 1),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(dx, cy + h*0.22), Vector2(dx - w*0.040, cy + h*0.36), Vector2(dx + w*0.040, cy + h*0.36),
+		]), PackedColorArray([drip_c, drip_c, drip_c]))
+		draw_circle(Vector2(dx + 1, cy + h*0.36 + 1), w * 0.040, shd)
+		draw_circle(Vector2(dx, cy + h*0.36), w * 0.040, drip_c)
+
+# ── Dark Reveler (raised goblet) ──────────────────────────────────────────────
+
+func _draw_dark_reveler(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.22 + 2, cy - h*0.20 + 2), Vector2(cx + w*0.22 + 2, cy - h*0.20 + 2),
+		Vector2(cx + w*0.16 + 2, cy + h*0.10 + 2), Vector2(cx - w*0.16 + 2, cy + h*0.10 + 2),
+	]), PackedColorArray([shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.22, cy - h*0.20), Vector2(cx + w*0.22, cy - h*0.20),
+		Vector2(cx + w*0.16, cy + h*0.10), Vector2(cx - w*0.16, cy + h*0.10),
+	]), PackedColorArray([fg, fg, fg.darkened(0.10), fg.darkened(0.10)]))
+	draw_rect(Rect2(cx - w*0.05 + 2, cy + h*0.10 + 2, w*0.10, h*0.14), shd)
+	draw_rect(Rect2(cx - w*0.05, cy + h*0.10, w*0.10, h*0.14), fg.darkened(0.15))
+	draw_rect(Rect2(cx - w*0.20 + 2, cy + h*0.24 + 2, w*0.40, h*0.08), shd)
+	draw_rect(Rect2(cx - w*0.20, cy + h*0.24, w*0.40, h*0.08), fg)
+	draw_line(Vector2(cx - w*0.22 + 1, cy - h*0.20 + 1), Vector2(cx + w*0.22 + 1, cy - h*0.20 + 1), shd, 3)
+	draw_line(Vector2(cx - w*0.22, cy - h*0.20), Vector2(cx + w*0.22, cy - h*0.20), fg.lightened(0.20), 2)
+	for i in range(3):
+		var sx := cx - w*0.12 + float(i) * w*0.12
+		var sy := cy - h*0.32 - float(i % 2) * h*0.08
+		draw_circle(Vector2(sx + 1, sy + 1), w * 0.032, shd)
+		draw_circle(Vector2(sx, sy), w * 0.032, fg.lightened(0.40))
+
+# ── Auric Mirror (diamond with reflection) ────────────────────────────────────
+
+func _draw_auric_mirror(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + 2, cy - h*0.38 + 2), Vector2(cx + w*0.32 + 2, cy + 2),
+		Vector2(cx + 2, cy + h*0.38 + 2), Vector2(cx - w*0.32 + 2, cy + 2),
+	]), PackedColorArray([shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx, cy - h*0.38), Vector2(cx + w*0.32, cy),
+		Vector2(cx, cy + h*0.38), Vector2(cx - w*0.32, cy),
+	]), PackedColorArray([fg, fg, fg.darkened(0.14), fg.darkened(0.14)]))
+	draw_line(Vector2(cx - w*0.32 + 2, cy + 2), Vector2(cx + w*0.32 + 2, cy + 2), shd, 3)
+	draw_line(Vector2(cx - w*0.32, cy), Vector2(cx + w*0.32, cy), fg.lightened(0.30), 2)
+	draw_circle(Vector2(cx - w*0.08, cy - h*0.12), w * 0.050, fg.lightened(0.45))
+
+# ── Eternal Grove (large tree) ────────────────────────────────────────────────
+
+func _draw_eternal_grove(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_rect(Rect2(cx - w*0.08 + 2, cy + h*0.08 + 2, w*0.16, h*0.36), shd)
+	draw_rect(Rect2(cx - w*0.08, cy + h*0.08, w*0.16, h*0.36), fg.darkened(0.22))
+	draw_circle(Vector2(cx + 2, cy - h*0.12 + 2), w * 0.34, shd)
+	draw_circle(Vector2(cx, cy - h*0.12), w * 0.34, fg)
+	draw_circle(Vector2(cx - w*0.14, cy - h*0.20), w * 0.14, fg.lightened(0.20))
+	draw_circle(Vector2(cx + w*0.10, cy - h*0.24), w * 0.10, fg.lightened(0.26))
+	draw_line(Vector2(cx - w*0.34 + 1, cy + h*0.38 + 1), Vector2(cx + w*0.34 + 1, cy + h*0.38 + 1), shd, 5)
+	draw_line(Vector2(cx - w*0.34, cy + h*0.38), Vector2(cx + w*0.34, cy + h*0.38), fg.darkened(0.15), 4)
+
+# ── Blood Hunger (fangs with drips) ───────────────────────────────────────────
+
+func _draw_blood_hunger(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_arc(Vector2(cx + 2, cy - h*0.04 + 2), w * 0.34, PI, TAU, 18, shd, w*0.12)
+	draw_arc(Vector2(cx, cy - h*0.04), w * 0.34, PI, TAU, 18, fg.darkened(0.10), w*0.12)
+	for i in range(3):
+		var a := PI + float(i + 0.5) * PI / 3.0
+		var tx := cx + cos(a) * w*0.26
+		var ty := cy - h*0.04 + sin(a) * h*0.26
+		draw_polygon(PackedVector2Array([
+			Vector2(tx + 2, ty + 2), Vector2(tx - w*0.06 + 2, ty + h*0.16 + 2), Vector2(tx + w*0.06 + 2, ty + h*0.16 + 2),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(tx, ty), Vector2(tx - w*0.06, ty + h*0.16), Vector2(tx + w*0.06, ty + h*0.16),
+		]), PackedColorArray([fg.lightened(0.28), fg, fg]))
+	for i in range(2):
+		var dx := cx - w*0.08 + float(i) * w*0.16
+		draw_polygon(PackedVector2Array([
+			Vector2(dx + 1, cy + h*0.30 + 1), Vector2(dx - w*0.038 + 1, cy + h*0.44 + 1), Vector2(dx + w*0.038 + 1, cy + h*0.44 + 1),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(dx, cy + h*0.30), Vector2(dx - w*0.038, cy + h*0.44), Vector2(dx + w*0.038, cy + h*0.44),
+		]), PackedColorArray([Color(0.80, 0.05, 0.05, 0.92), Color(0.80, 0.05, 0.05, 0.92), Color(0.80, 0.05, 0.05, 0.92)]))
+		draw_circle(Vector2(dx + 1, cy + h*0.44 + 1), w * 0.038, shd)
+		draw_circle(Vector2(dx, cy + h*0.44), w * 0.038, Color(0.80, 0.05, 0.05, 0.92))
+
+# ── Pack Sovereign (crown over paw) ───────────────────────────────────────────
+
+func _draw_pack_sovereign(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_rect(Rect2(cx - w*0.28 + 2, cy + h*0.02 + 2, w*0.56, h*0.18), shd)
+	draw_rect(Rect2(cx - w*0.28, cy + h*0.02, w*0.56, h*0.18), fg.darkened(0.12))
+	for tx in [cx - w*0.20, cx, cx + w*0.20]:
+		draw_polygon(PackedVector2Array([
+			Vector2(tx + 2, cy - h*0.30 + 2), Vector2(tx - w*0.08 + 2, cy + h*0.02 + 2), Vector2(tx + w*0.08 + 2, cy + h*0.02 + 2),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(tx, cy - h*0.30), Vector2(tx - w*0.08, cy + h*0.02), Vector2(tx + w*0.08, cy + h*0.02),
+		]), PackedColorArray([fg, fg, fg]))
+	draw_circle(Vector2(cx + 2, cy + h*0.30 + 2), w * 0.10, shd)
+	draw_circle(Vector2(cx, cy + h*0.30), w * 0.10, fg)
+	for i in range(4):
+		var px := cx - w*0.18 + float(i) * w*0.12
+		var py := cy + h*0.20 - (h*0.04 if i == 0 or i == 3 else 0.0)
+		draw_circle(Vector2(px + 1, py + 1), w * 0.058, shd)
+		draw_circle(Vector2(px, py), w * 0.058, fg)
+
+# ── Prismatic Reveler (starburst) ─────────────────────────────────────────────
+
+func _draw_prismatic_reveler(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	var ray_colors := [Color(1,0.2,0.2), Color(1,0.6,0.1), Color(1,1,0.2), Color(0.2,0.9,0.2), Color(0.2,0.6,1), Color(0.8,0.2,1), Color(1,0.4,0.8), Color(1,0.2,0.2)]
+	for i in range(8):
+		var a := float(i) * TAU / 8.0
+		var outer := w * (0.40 if i % 2 == 0 else 0.28)
+		draw_line(Vector2(cx + cos(a)*w*0.10 + 1, cy + sin(a)*h*0.10 + 1), Vector2(cx + cos(a)*outer + 1, cy + sin(a)*(outer*h/w) + 1), shd, 5)
+		draw_line(Vector2(cx + cos(a)*w*0.10, cy + sin(a)*h*0.10), Vector2(cx + cos(a)*outer, cy + sin(a)*(outer*h/w)), ray_colors[i], 3)
+	draw_circle(Vector2(cx + 2, cy + 2), w * 0.12, shd)
+	draw_circle(Vector2(cx, cy), w * 0.12, Color(1, 1, 1, 0.95))
+
+# ── Capacitor (two parallel plates + field lines) ────────────────────────────
+
+func _draw_capacitor(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Left plate
+	draw_rect(Rect2(cx - w*0.24 + 2, cy - h*0.36 + 2, w*0.09, h*0.72), shd)
+	draw_rect(Rect2(cx - w*0.24, cy - h*0.36, w*0.09, h*0.72), fg)
+	# Right plate
+	draw_rect(Rect2(cx + w*0.15 + 2, cy - h*0.36 + 2, w*0.09, h*0.72), shd)
+	draw_rect(Rect2(cx + w*0.15, cy - h*0.36, w*0.09, h*0.72), fg)
+	# Left terminal line
+	draw_line(Vector2(cx - w*0.20 + 2, cy + 2), Vector2(cx - w*0.40 + 2, cy + 2), shd, 4)
+	draw_line(Vector2(cx - w*0.20, cy), Vector2(cx - w*0.40, cy), fg, 3)
+	# Right terminal line
+	draw_line(Vector2(cx + w*0.20 + 2, cy + 2), Vector2(cx + w*0.40 + 2, cy + 2), shd, 4)
+	draw_line(Vector2(cx + w*0.20, cy), Vector2(cx + w*0.40, cy), fg, 3)
+	# Field lines between plates
+	var fc := Color(0.50, 0.85, 1.0, 0.75)
+	for fy in [-h*0.14, 0.0, h*0.14]:
+		draw_line(Vector2(cx - w*0.12, cy + fy), Vector2(cx + w*0.12, cy + fy), fc, 2.0)
+
+# ── Volt Striker (lightning bolt + diagonal slash) ────────────────────────────
+
+func _draw_volt_striker(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	var bx := cx - w*0.06
+	draw_polygon(PackedVector2Array([
+		Vector2(bx + w*0.14, cy - h*0.42),
+		Vector2(bx + w*0.04, cy - h*0.06),
+		Vector2(bx + w*0.12, cy + h*0.06),
+		Vector2(bx - w*0.14, cy + h*0.42),
+		Vector2(bx - w*0.04, cy + h*0.06),
+		Vector2(bx - w*0.06, cy - h*0.06),
+	]), PackedColorArray([shd, shd, shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(bx + w*0.11, cy - h*0.40),
+		Vector2(bx + w*0.02, cy - h*0.05),
+		Vector2(bx + w*0.10, cy + h*0.05),
+		Vector2(bx - w*0.11, cy + h*0.40),
+		Vector2(bx - w*0.02, cy + h*0.05),
+		Vector2(bx - w*0.04, cy - h*0.05),
+	]), PackedColorArray([fg, fg, fg, fg, fg, fg]))
+	# Strike slash across
+	draw_line(Vector2(cx - w*0.38, cy + h*0.12 + 2), Vector2(cx + w*0.42, cy - h*0.16 + 2), shd, 5)
+	draw_line(Vector2(cx - w*0.38, cy + h*0.12), Vector2(cx + w*0.42, cy - h*0.16), Color(1.0, 0.85, 0.15, 0.9), 3)
+
+# ── Reigniter (reset arrow + flame) ─────────────────────────────────────────
+
+func _draw_reigniter(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Circular reset arc
+	draw_arc(Vector2(cx + 2, cy + h*0.10 + 2), w * 0.25, PI * 0.1, PI * 1.88, 24, shd, 7)
+	draw_arc(Vector2(cx, cy + h*0.10), w * 0.25, PI * 0.1, PI * 1.88, 24, fg, 5)
+	# Arrowhead at arc end
+	var ae := Vector2(cx + w*0.25 * cos(PI * 1.88), cy + h*0.10 + w*0.25 * sin(PI * 1.88))
+	draw_polygon(PackedVector2Array([ae, ae + Vector2(w*0.09, h*0.05), ae + Vector2(w*0.01, -h*0.07)]),
+		PackedColorArray([fg, fg, fg]))
+	# Flame at top
+	draw_circle(Vector2(cx + 2, cy - h*0.22 + 2), w * 0.11, shd)
+	draw_circle(Vector2(cx, cy - h*0.22), w * 0.11, Color(1.0, 0.55, 0.08))
+	draw_circle(Vector2(cx - w*0.02, cy - h*0.27), w * 0.06, Color(1.0, 0.90, 0.30))
+
+# ── Coil Weaver (spring coil zig-zag) ────────────────────────────────────────
+
+func _draw_coil_weaver(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	var loops := 5
+	for i in range(loops):
+		var t := float(i) / float(loops)
+		var y0 := cy - h*0.38 + t * h*0.76
+		var y1 := cy - h*0.38 + (t + 0.5 / loops) * h*0.76
+		var y2 := cy - h*0.38 + (t + 1.0 / loops) * h*0.76
+		draw_line(Vector2(cx - w*0.28 + 2, y0 + 2), Vector2(cx + w*0.28 + 2, y1 + 2), shd, 6)
+		draw_line(Vector2(cx + w*0.28 + 2, y1 + 2), Vector2(cx - w*0.28 + 2, y2 + 2), shd, 6)
+		draw_line(Vector2(cx - w*0.28, y0), Vector2(cx + w*0.28, y1), fg, 4)
+		draw_line(Vector2(cx + w*0.28, y1), Vector2(cx - w*0.28, y2), fg, 4)
+
+# ── Iron Sentinel (armored shield + circuit lines) ────────────────────────────
+
+func _draw_iron_sentinel(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	var sw := w * 0.54
+	var sh := h * 0.66
+	var sy := cy - sh * 0.50
+	var shd_pts := PackedVector2Array([
+		Vector2(cx - sw*0.5 + 2, sy + 2), Vector2(cx + sw*0.5 + 2, sy + 2),
+		Vector2(cx + sw*0.5 + 2, sy + sh*0.52 + 2), Vector2(cx + 2, sy + sh + 2),
+		Vector2(cx - sw*0.5 + 2, sy + sh*0.52 + 2),
+	])
+	var main_pts := PackedVector2Array([
+		Vector2(cx - sw*0.5, sy), Vector2(cx + sw*0.5, sy),
+		Vector2(cx + sw*0.5, sy + sh*0.52), Vector2(cx, sy + sh),
+		Vector2(cx - sw*0.5, sy + sh*0.52),
+	])
+	draw_polygon(shd_pts, PackedColorArray([shd, shd, shd, shd, shd]))
+	draw_polygon(main_pts, PackedColorArray([fg.darkened(0.12), fg.darkened(0.12), fg.darkened(0.12), fg.darkened(0.12), fg.darkened(0.12)]))
+	var iw := sw * 0.72
+	var ih := sh * 0.68
+	var iy := sy + sh * 0.08
+	var inner_pts := PackedVector2Array([
+		Vector2(cx - iw*0.5, iy), Vector2(cx + iw*0.5, iy),
+		Vector2(cx + iw*0.5, iy + ih*0.52), Vector2(cx, iy + ih),
+		Vector2(cx - iw*0.5, iy + ih*0.52),
+	])
+	draw_polygon(inner_pts, PackedColorArray([fg, fg, fg, fg, fg]))
+	# Circuit lines
+	var lc := Color(0.50, 0.85, 1.0, 0.70)
+	draw_line(Vector2(cx, sy + sh*0.15), Vector2(cx, sy + sh*0.60), lc, 2.0)
+	draw_line(Vector2(cx - iw*0.28, sy + sh*0.32), Vector2(cx + iw*0.28, sy + sh*0.32), lc, 2.0)
+	draw_circle(Vector2(cx + 1, cy + 1), w * 0.070, shd)
+	draw_circle(Vector2(cx, cy), w * 0.070, Color(0.50, 0.88, 1.0))
+
+# ── Arc Coil (two pillar coils + electric arc) ────────────────────────────────
+
+func _draw_arc_coil(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	for i in range(2):
+		var side := -1.0 if i == 0 else 1.0
+		var px := cx + side * w * 0.26
+		draw_rect(Rect2(px - w*0.07 + 2, cy + h*0.06 + 2, w*0.14, h*0.32), shd)
+		draw_rect(Rect2(px - w*0.07, cy + h*0.06, w*0.14, h*0.32), fg.darkened(0.10))
+		for j in range(3):
+			var ry := cy + h*0.10 + float(j) * h*0.10
+			draw_line(Vector2(px - w*0.10 + 1, ry + 1), Vector2(px + w*0.10 + 1, ry + 1), shd, 3)
+			draw_line(Vector2(px - w*0.10, ry), Vector2(px + w*0.10, ry), fg, 2)
+		draw_circle(Vector2(px + 1, cy + 1), w * 0.11, shd)
+		draw_circle(Vector2(px, cy), w * 0.11, fg.lightened(0.10))
+	# Deterministic zigzag arc between tops
+	var ac := Color(0.45, 0.88, 1.0, 0.9)
+	var arc_pts := [
+		Vector2(cx - w*0.26, cy),         Vector2(cx - w*0.14, cy - h*0.11),
+		Vector2(cx - w*0.04, cy + h*0.09), Vector2(cx + w*0.06, cy - h*0.09),
+		Vector2(cx + w*0.16, cy + h*0.11), Vector2(cx + w*0.26, cy),
+	]
+	for j in range(arc_pts.size() - 1):
+		draw_line(arc_pts[j] + Vector2(1, 1), arc_pts[j + 1] + Vector2(1, 1), shd, 4)
+		draw_line(arc_pts[j], arc_pts[j + 1], ac, 2.5)
+
+# ── Accumulator (battery + stacked charge bars) ──────────────────────────────
+
+func _draw_accumulator(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Battery outline
+	draw_rect(Rect2(cx - w*0.28 + 2, cy - h*0.36 + 2, w*0.56, h*0.68), shd)
+	draw_rect(Rect2(cx - w*0.28, cy - h*0.36, w*0.56, h*0.68), fg.darkened(0.20))
+	# Battery top nub
+	draw_rect(Rect2(cx - w*0.10 + 2, cy - h*0.44 + 2, w*0.20, h*0.10), shd)
+	draw_rect(Rect2(cx - w*0.10, cy - h*0.44, w*0.20, h*0.10), fg)
+	# Charge bars (bottom to top, 3 bars)
+	var bar_colors := [Color(0.20, 0.90, 0.30), Color(0.20, 0.90, 0.30), Color(0.50, 0.88, 1.0)]
+	for i in range(3):
+		var by := cy + h*0.20 - float(i) * h*0.18
+		draw_rect(Rect2(cx - w*0.18, by, w*0.36, h*0.12), bar_colors[i].darkened(0.35))
+		draw_rect(Rect2(cx - w*0.18, by, w*0.36 * (1.0 - float(i) * 0.15), h*0.12), bar_colors[i])
+	# Plus sign
+	draw_line(Vector2(cx, cy - h*0.28), Vector2(cx, cy - h*0.16), fg.lightened(0.3), 2.5)
+	draw_line(Vector2(cx - w*0.08, cy - h*0.22), Vector2(cx + w*0.08, cy - h*0.22), fg.lightened(0.3), 2.5)
+
+# ── Discharge Engine (gear + firing bolt) ────────────────────────────────────
+
+func _draw_discharge_engine(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Gear body
+	draw_circle(Vector2(cx + 2, cy + h*0.08 + 2), w * 0.24, shd)
+	draw_circle(Vector2(cx, cy + h*0.08), w * 0.24, fg.darkened(0.10))
+	draw_circle(Vector2(cx, cy + h*0.08), w * 0.13, Color(0.14, 0.18, 0.22))
+	# Six gear teeth
+	for i in range(6):
+		var a := float(i) * PI / 3.0
+		var tx := cx + cos(a) * w * 0.24
+		var ty := cy + h*0.08 + sin(a) * h * 0.24
+		var ta := a - PI * 0.5
+		draw_polygon(PackedVector2Array([
+			Vector2(tx + cos(ta)*w*0.06 + 2, ty + sin(ta)*h*0.06 + 2),
+			Vector2(tx - cos(ta)*w*0.06 + 2, ty - sin(ta)*h*0.06 + 2),
+			Vector2(tx + cos(a)*w*0.12 + 2,  ty + sin(a)*h*0.12 + 2),
+		]), PackedColorArray([shd, shd, shd]))
+		draw_polygon(PackedVector2Array([
+			Vector2(tx + cos(ta)*w*0.06, ty + sin(ta)*h*0.06),
+			Vector2(tx - cos(ta)*w*0.06, ty - sin(ta)*h*0.06),
+			Vector2(tx + cos(a)*w*0.12,  ty + sin(a)*h*0.12),
+		]), PackedColorArray([fg, fg, fg]))
+	# Discharge bolt firing up-right
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.14 + 2, cy - h*0.06 + 2), Vector2(cx + w*0.06 + 2, cy - h*0.22 + 2),
+		Vector2(cx + w*0.20 + 2, cy - h*0.18 + 2), Vector2(cx + w*0.12 + 2, cy - h*0.34 + 2),
+		Vector2(cx + w*0.28 + 2, cy - h*0.16 + 2), Vector2(cx + w*0.18 + 2, cy - h*0.08 + 2),
+	]), PackedColorArray([shd, shd, shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.14, cy - h*0.06), Vector2(cx + w*0.06, cy - h*0.22),
+		Vector2(cx + w*0.20, cy - h*0.18), Vector2(cx + w*0.12, cy - h*0.34),
+		Vector2(cx + w*0.28, cy - h*0.16), Vector2(cx + w*0.18, cy - h*0.08),
+	]), PackedColorArray([fg, fg, fg, fg, fg, fg]))
+
+# ── Surge Conduit (three bolts converging into burst) ────────────────────────
+
+func _draw_surge_conduit(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Three input lightning lines
+	var sources := [Vector2(cx - w*0.30, cy - h*0.40), Vector2(cx, cy - h*0.44), Vector2(cx + w*0.30, cy - h*0.40)]
+	var mid := Vector2(cx, cy - h*0.04)
+	for s in sources:
+		draw_line(s + Vector2(2, 2), mid + Vector2(2, 2), shd, 5)
+		draw_line(s, mid, fg, 3)
+	# Central burst
+	draw_circle(Vector2(cx + 2, cy + h*0.06 + 2), w * 0.16, shd)
+	draw_circle(Vector2(cx, cy + h*0.06), w * 0.16, fg)
+	draw_circle(Vector2(cx, cy + h*0.06), w * 0.08, Color(1.0, 0.90, 0.40, 0.90))
+	# Output bolt downward
+	draw_polygon(PackedVector2Array([
+		Vector2(cx + w*0.06, cy + h*0.20), Vector2(cx - w*0.04, cy + h*0.32),
+		Vector2(cx + w*0.04, cy + h*0.30), Vector2(cx - w*0.06, cy + h*0.44),
+		Vector2(cx + w*0.14, cy + h*0.30), Vector2(cx + w*0.04, cy + h*0.28),
+	]), PackedColorArray([fg, fg, fg, fg, fg, fg]))
+
+# ── Charge Siphon (hourglass funnel) ─────────────────────────────────────────
+
+func _draw_charge_siphon(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Upper half (wide→narrow)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.36 + 2, cy - h*0.40 + 2), Vector2(cx + w*0.36 + 2, cy - h*0.40 + 2),
+		Vector2(cx + w*0.08 + 2, cy + 2),           Vector2(cx - w*0.08 + 2, cy + 2),
+	]), PackedColorArray([shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.36, cy - h*0.40), Vector2(cx + w*0.36, cy - h*0.40),
+		Vector2(cx + w*0.08, cy),           Vector2(cx - w*0.08, cy),
+	]), PackedColorArray([fg.darkened(0.10), fg.darkened(0.10), fg.darkened(0.10), fg.darkened(0.10)]))
+	# Lower half (narrow→wide)
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.08 + 2, cy + 2), Vector2(cx + w*0.08 + 2, cy + 2),
+		Vector2(cx + w*0.36 + 2, cy + h*0.40 + 2), Vector2(cx - w*0.36 + 2, cy + h*0.40 + 2),
+	]), PackedColorArray([shd, shd, shd, shd]))
+	draw_polygon(PackedVector2Array([
+		Vector2(cx - w*0.08, cy), Vector2(cx + w*0.08, cy),
+		Vector2(cx + w*0.36, cy + h*0.40), Vector2(cx - w*0.36, cy + h*0.40),
+	]), PackedColorArray([fg, fg, fg, fg]))
+	# Energy particle at neck
+	draw_circle(Vector2(cx + 1, cy + 1), w * 0.048, shd)
+	draw_circle(Vector2(cx, cy), w * 0.048, Color(0.50, 0.85, 1.0, 0.90))
+
+# ── Overload Core (hot pulsing rings) ────────────────────────────────────────
+
+func _draw_overload_core(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	for i in range(4):
+		var r := w * (0.10 + float(i) * 0.072)
+		var intensity := 1.0 - float(i) / 4.0
+		var rc := Color(1.0, 0.35 + intensity * 0.30, 0.10, 0.85 - float(i) * 0.12)
+		draw_arc(Vector2(cx + 2, cy + 2), r, 0, TAU, 32, shd, 5.5 - float(i) * 0.8)
+		draw_arc(Vector2(cx, cy), r, 0, TAU, 32, rc, 4.0 - float(i) * 0.8)
+	draw_circle(Vector2(cx + 1, cy + 1), w * 0.10, shd)
+	draw_circle(Vector2(cx, cy), w * 0.10, Color(1.0, 0.70, 0.10))
+	draw_circle(Vector2(cx, cy), w * 0.05, Color(1.0, 1.0, 0.80, 0.95))
+	# Overload sparks
+	for i in range(4):
+		var a := float(i) * PI * 0.5 + PI * 0.25
+		var sr := w * 0.31
+		var sx := cx + cos(a) * sr
+		var sy2 := cy + sin(a) * sr * h / w
+		draw_line(Vector2(cx + cos(a)*w*0.10 + 1, cy + sin(a)*h*0.10 + 1), Vector2(sx + 1, sy2 + 1), shd, 3)
+		draw_line(Vector2(cx + cos(a)*w*0.10, cy + sin(a)*h*0.10), Vector2(sx, sy2), Color(1.0, 0.80, 0.20, 0.90), 2)
+
+# ── Meltdown (glowing core + drips) ─────────────────────────────────────────
+
+func _draw_meltdown(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	draw_circle(Vector2(cx + 2, cy - h*0.10 + 2), w * 0.28, shd)
+	draw_circle(Vector2(cx, cy - h*0.10), w * 0.28, Color(1.0, 0.45, 0.05))
+	draw_circle(Vector2(cx, cy - h*0.10), w * 0.18, Color(1.0, 0.70, 0.15))
+	draw_circle(Vector2(cx - w*0.06, cy - h*0.15), w * 0.09, Color(1.0, 0.95, 0.50, 0.85))
+	# Drips
+	for dp: Array in [[cx - w*0.12, cy + h*0.16, h*0.14], [cx + w*0.04, cy + h*0.18, h*0.20], [cx + w*0.20, cy + h*0.14, h*0.10]]:
+		var dx: float = dp[0]
+		var dy: float = dp[1]
+		var dl: float = dp[2]
+		draw_line(Vector2(dx + 1, dy + 1), Vector2(dx + 1, dy + dl + 1), shd, 7)
+		draw_line(Vector2(dx, dy), Vector2(dx, dy + dl), Color(1.0, 0.50, 0.05), 5)
+		draw_circle(Vector2(dx + 1, dy + dl + 1), w * 0.052, shd)
+		draw_circle(Vector2(dx, dy + dl), w * 0.052, Color(1.0, 0.40, 0.05))
+
+# ── Relay Node (hub + radiating connections) ─────────────────────────────────
+
+func _draw_relay_node(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	var nc := Color(0.50, 0.80, 1.0, 0.75)
+	for i in range(6):
+		var a := float(i) * PI / 3.0
+		var dx := cx + cos(a) * w * 0.38
+		var dy := cy + sin(a) * h * 0.38
+		draw_line(Vector2(cx + 1, cy + 1), Vector2(dx + 1, dy + 1), shd, 4)
+		draw_line(Vector2(cx, cy), Vector2(dx, dy), nc, 2.5)
+		draw_circle(Vector2(dx + 1, dy + 1), w * 0.038, shd)
+		draw_circle(Vector2(dx, dy), w * 0.038, fg.lightened(0.15))
+	draw_circle(Vector2(cx + 2, cy + 2), w * 0.18, shd)
+	draw_circle(Vector2(cx, cy), w * 0.18, fg.darkened(0.05))
+	draw_circle(Vector2(cx, cy), w * 0.10, Color(0.50, 0.88, 1.0))
+	draw_circle(Vector2(cx - w*0.04, cy - h*0.04), w * 0.045, Color(1.0, 1.0, 1.0, 0.80))
+
+# ── Grand Capacitor (three plates + connecting bars) ─────────────────────────
+
+func _draw_grand_capacitor(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	for px in [cx - w*0.24, cx - w*0.02, cx + w*0.20]:
+		draw_rect(Rect2(px + 2, cy - h*0.38 + 2, w*0.08, h*0.76), shd)
+		draw_rect(Rect2(px, cy - h*0.38, w*0.08, h*0.76), fg)
+	# Top connecting bar
+	draw_rect(Rect2(cx - w*0.26 + 2, cy - h*0.40 + 2, w*0.52, h*0.06), shd)
+	draw_rect(Rect2(cx - w*0.26, cy - h*0.40, w*0.52, h*0.06), fg.lightened(0.10))
+	# Bottom connecting bar
+	draw_rect(Rect2(cx - w*0.26 + 2, cy + h*0.34 + 2, w*0.52, h*0.06), shd)
+	draw_rect(Rect2(cx - w*0.26, cy + h*0.34, w*0.52, h*0.06), fg.lightened(0.10))
+	# Field lines
+	var fc2 := Color(0.50, 0.85, 1.0, 0.65)
+	for fy in [-h*0.18, 0.0, h*0.18]:
+		draw_line(Vector2(cx - w*0.12, cy + fy), Vector2(cx + w*0.10, cy + fy), fc2, 2.0)
+	# Terminals
+	draw_line(Vector2(cx - w*0.22 + 2, cy + 2), Vector2(cx - w*0.40 + 2, cy + 2), shd, 4)
+	draw_line(Vector2(cx - w*0.22, cy), Vector2(cx - w*0.40, cy), fg, 3)
+	draw_line(Vector2(cx + w*0.26 + 2, cy + 2), Vector2(cx + w*0.44 + 2, cy + 2), shd, 4)
+	draw_line(Vector2(cx + w*0.26, cy), Vector2(cx + w*0.44, cy), fg, 3)
+
+# ── Recharge Protocol (two circular arrows + core) ───────────────────────────
+
+func _draw_recharge_protocol(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Outer arc (clockwise, ends on right)
+	draw_arc(Vector2(cx + 2, cy + 2), w * 0.34, -PI * 0.85, PI * 0.55, 28, shd, 8)
+	draw_arc(Vector2(cx, cy), w * 0.34, -PI * 0.85, PI * 0.55, 28, fg, 6)
+	var oa_end := Vector2(cx + w*0.34 * cos(PI * 0.55), cy + w*0.34 * sin(PI * 0.55))
+	var oa_perp := Vector2(sin(PI * 0.55), -cos(PI * 0.55))
+	draw_polygon(PackedVector2Array([oa_end, oa_end + oa_perp*w*0.08 + Vector2(w*0.02, h*0.05), oa_end - oa_perp*w*0.04 + Vector2(w*0.02, h*0.05)]),
+		PackedColorArray([fg, fg, fg]))
+	# Inner arc (counter-clockwise, ends on left)
+	draw_arc(Vector2(cx + 2, cy + 2), w * 0.20, PI * 0.30, PI * 1.85, 20, shd, 6)
+	draw_arc(Vector2(cx, cy), w * 0.20, PI * 0.30, PI * 1.85, 20, fg.lightened(0.18), 4)
+	var ia_end := Vector2(cx + w*0.20 * cos(PI * 1.85), cy + w*0.20 * sin(PI * 1.85))
+	var ia_perp := Vector2(-sin(PI * 1.85), cos(PI * 1.85))
+	draw_polygon(PackedVector2Array([ia_end, ia_end + ia_perp*w*0.06 + Vector2(-w*0.02, -h*0.04), ia_end - ia_perp*w*0.04 + Vector2(-w*0.02, -h*0.04)]),
+		PackedColorArray([fg.lightened(0.18), fg.lightened(0.18), fg.lightened(0.18)]))
+	# Core
+	draw_circle(Vector2(cx + 1, cy + 1), w * 0.088, shd)
+	draw_circle(Vector2(cx, cy), w * 0.088, Color(0.50, 0.88, 1.0))
+	draw_circle(Vector2(cx, cy), w * 0.044, Color(1.0, 1.0, 1.0, 0.90))
+
+# ── Fission Core (split nucleus + atom orbits) ───────────────────────────────
+
+func _draw_fission_core(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# Three orbital ellipses
+	var orbit_r := w * 0.30
+	for i in range(3):
+		var a := float(i) * PI / 3.0
+		var segs := 24
+		var prev_s := Vector2.ZERO
+		var prev_f := Vector2.ZERO
+		for j in range(segs + 1):
+			var t := float(j) / float(segs) * TAU
+			var lx := cos(t) * orbit_r
+			var ly := sin(t) * orbit_r * 0.40
+			var rx := cx + lx * cos(a) - ly * sin(a)
+			var ry := cy + lx * sin(a) + ly * cos(a)
+			if j > 0:
+				draw_line(prev_s, Vector2(rx + 2, ry + 2), shd, 3)
+				draw_line(prev_f, Vector2(rx, ry), fg, 2)
+			prev_s = Vector2(rx + 2, ry + 2)
+			prev_f = Vector2(rx, ry)
+	# Split nucleus (two halves)
+	draw_circle(Vector2(cx - w*0.08 + 2, cy + 2), w * 0.10, shd)
+	draw_circle(Vector2(cx - w*0.08, cy), w * 0.10, Color(1.0, 0.55, 0.10))
+	draw_circle(Vector2(cx + w*0.08 + 2, cy + 2), w * 0.10, shd)
+	draw_circle(Vector2(cx + w*0.08, cy), w * 0.10, Color(1.0, 0.25, 0.05))
+	# Burst rays
+	for i in range(6):
+		var ra := float(i) * PI / 3.0 + PI / 6.0
+		var rr := w * (0.22 + 0.08 * (i % 2))
+		draw_line(Vector2(cx + cos(ra)*w*0.12 + 1, cy + sin(ra)*h*0.12 + 1),
+			Vector2(cx + cos(ra)*rr + 1, cy + sin(ra)*rr*h/w + 1), shd, 4)
+		draw_line(Vector2(cx + cos(ra)*w*0.12, cy + sin(ra)*h*0.12),
+			Vector2(cx + cos(ra)*rr, cy + sin(ra)*rr*h/w), Color(1.0, 0.90, 0.30, 0.90), 2.5)

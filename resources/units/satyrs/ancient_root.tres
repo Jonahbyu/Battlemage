@@ -4,10 +4,11 @@
 
 [resource]
 script = ExtResource("1")
-display_name = "Sun Priest"
+display_name = "Ancient Root"
 base_attack = 1
-base_health = 4
-keywords = 0
-race = 6
-aztec_effect = 1
-tier = 1
+base_health = 6
+keywords = 8
+race = 10
+satyr_effect = 14
+satyr_color = 4
+tier = 3

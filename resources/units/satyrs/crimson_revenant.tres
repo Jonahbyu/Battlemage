@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Crimson Revenant"
+base_attack = 4
+base_health = 1
+keywords = 8
+race = 10
+satyr_effect = 6
+satyr_color = 1
+tier = 2

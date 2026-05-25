@@ -4,10 +4,10 @@
 
 [resource]
 script = ExtResource("1")
-display_name = "High Priest"
-base_attack = 3
-base_health = 8
+display_name = "Meltdown"
+base_attack = 5
+base_health = 7
 keywords = 0
-race = 6
-aztec_effect = 8
-tier = 4
+race = 7
+construct_effect = 13
+tier = 3

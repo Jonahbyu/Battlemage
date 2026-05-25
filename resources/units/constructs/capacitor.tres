@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Capacitor"
+base_attack = 1
+base_health = 4
+keywords = 0
+race = 7
+construct_effect = 2
+tier = 1
