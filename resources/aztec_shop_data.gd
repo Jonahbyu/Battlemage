@@ -16,6 +16,8 @@ var sacrifice_purchases: int = 0
 # Tracks total sacrifices + tributes this run for The Devourer
 var devourer_count: int = 0
 
+var gold_invested: int = 0
+
 
 func blessing_cost() -> int:
 	return 5 + blessing_purchases * 2 + GameData.shop_cost_bonus
@@ -33,6 +35,17 @@ func tribute_gold(player_tier: int) -> int:
 	return player_tier * tribute_rate
 
 
+func reset() -> void:
+	blessing_rate -= blessing_purchases
+	tribute_rate -= tribute_purchases
+	sacrifice_rate -= sacrifice_purchases
+	blessing_purchases = 0
+	tribute_purchases = 0
+	sacrifice_purchases = 0
+	gold_invested = 0
+	# devourer_count intentionally not reset — it tracks run history for The Devourer
+
+
 func to_dict() -> Dictionary:
 	return {
 		"blessing_rate": blessing_rate,
@@ -42,6 +55,7 @@ func to_dict() -> Dictionary:
 		"sacrifice_rate": sacrifice_rate,
 		"sacrifice_purchases": sacrifice_purchases,
 		"devourer_count": devourer_count,
+		"gold_invested": gold_invested,
 	}
 
 
@@ -53,3 +67,4 @@ func from_dict(d: Dictionary) -> void:
 	sacrifice_rate = int(d.get("sacrifice_rate", 2))
 	sacrifice_purchases = int(d.get("sacrifice_purchases", 0))
 	devourer_count = int(d.get("devourer_count", 0))
+	gold_invested = int(d.get("gold_invested", 0))

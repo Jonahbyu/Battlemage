@@ -13,6 +13,8 @@ var recoil_purchases: int = 0
 var resonance_charge: int = 0
 var resonance_purchases: int = 0
 
+var gold_invested: int = 0
+
 
 func cache_cost() -> int:
 	return 5 + cache_purchases * 2 + GameData.shop_cost_bonus
@@ -26,6 +28,16 @@ func resonance_cost() -> int:
 	return 5 + resonance_purchases * 2 + GameData.shop_cost_bonus
 
 
+func reset() -> void:
+	charge_cache -= cache_purchases * 3
+	recoil_charge -= recoil_purchases
+	resonance_charge -= resonance_purchases
+	cache_purchases = 0
+	recoil_purchases = 0
+	resonance_purchases = 0
+	gold_invested = 0
+
+
 func to_dict() -> Dictionary:
 	return {
 		"charge_cache": charge_cache,
@@ -34,6 +46,7 @@ func to_dict() -> Dictionary:
 		"recoil_purchases": recoil_purchases,
 		"resonance_charge": resonance_charge,
 		"resonance_purchases": resonance_purchases,
+		"gold_invested": gold_invested,
 	}
 
 
@@ -44,3 +57,4 @@ func from_dict(d: Dictionary) -> void:
 	recoil_purchases = int(d.get("recoil_purchases", 0))
 	resonance_charge = int(d.get("resonance_charge", 0))
 	resonance_purchases = int(d.get("resonance_purchases", 0))
+	gold_invested = int(d.get("gold_invested", 0))

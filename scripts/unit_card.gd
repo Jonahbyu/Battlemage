@@ -21,6 +21,7 @@ var backpack_weapon: WeaponData = null
 # Spell slot — Mage units only
 var equipped_spell: SpellInstance = null
 var mage_effect_level: int = 1  # used by upgradeable passive effects (e.g. Coin Sage gold per death)
+var mage_invested_gold: int = 0
 
 # Construct charge — persists between combats
 var construct_charge: int = 0

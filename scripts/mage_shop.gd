@@ -3,6 +3,8 @@ extends Control
 
 signal trigger_bought(trigger: int)
 signal mage_effect_upgraded()
+signal triggers_divested()
+signal mage_effect_divested()
 signal closed()
 
 const TRIGGER_ORDER: Array = [
@@ -303,6 +305,8 @@ func _refresh_triggers() -> void:
 
 		_triggers_vbox.add_child(HSeparator.new())
 
+	_triggers_vbox.add_child(_make_trigger_divest_row(inst))
+
 
 func _on_trigger_buy(trigger: int) -> void:
 	trigger_bought.emit(trigger)
@@ -346,6 +350,54 @@ func _build_coin_sage_invest_row() -> void:
 	btn.pressed.connect(_on_mage_effect_buy)
 	row.add_child(btn)
 
+	_triggers_vbox.add_child(HSeparator.new())
+	_triggers_vbox.add_child(_make_effect_divest_row())
+
 
 func _on_mage_effect_buy() -> void:
 	mage_effect_upgraded.emit()
+
+
+func _make_trigger_divest_row(inst: SpellInstance) -> HBoxContainer:
+	var refund := floori(inst.gold_invested * 0.75)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "Divest Triggers"
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.25))
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_lbl)
+
+	var btn := Button.new()
+	btn.text = "Divest\n+%dg" % refund
+	btn.custom_minimum_size = Vector2(72, 52)
+	btn.disabled = inst.gold_invested == 0
+	btn.tooltip_text = "Invested: %dg  →  Refund: %dg (75%%)\nResets all trigger levels to 0." % [inst.gold_invested, refund]
+	btn.pressed.connect(func(): triggers_divested.emit())
+	row.add_child(btn)
+	return row
+
+
+func _make_effect_divest_row() -> HBoxContainer:
+	var invested := _target_card.mage_invested_gold if is_instance_valid(_target_card) else 0
+	var refund := floori(invested * 0.75)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "Divest Investments"
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.25))
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_lbl)
+
+	var btn := Button.new()
+	btn.text = "Divest\n+%dg" % refund
+	btn.custom_minimum_size = Vector2(72, 52)
+	btn.disabled = invested == 0
+	btn.tooltip_text = "Invested: %dg  →  Refund: %dg (75%%)\nResets to Lv.1." % [invested, refund]
+	btn.pressed.connect(func(): mage_effect_divested.emit())
+	row.add_child(btn)
+	return row

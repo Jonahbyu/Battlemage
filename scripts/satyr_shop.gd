@@ -2,6 +2,7 @@ class_name SatyrShop
 extends Control
 
 signal upgrade_bought(key: String)
+signal divested()
 signal closed()
 
 var _data: SatyrShopData = null
@@ -259,8 +260,32 @@ func _refresh_upgrades() -> void:
 		_data.prismatic_cost(), "prismatic", PRISMATIC_COLOR))
 	_upgrades_vbox.add_child(HSeparator.new())
 
+	_upgrades_vbox.add_child(_make_divest_row())
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+func _make_divest_row() -> HBoxContainer:
+	var refund := floori(_data.gold_invested * 0.75)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "Divest Shop"
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.25))
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_lbl)
+
+	var btn := Button.new()
+	btn.text = "Divest\n+%dg" % refund
+	btn.custom_minimum_size = Vector2(72, 52)
+	btn.disabled = _data.gold_invested == 0
+	btn.tooltip_text = "Invested: %dg  →  Refund: %dg (75%%)\nResets all upgrades to default." % [_data.gold_invested, refund]
+	btn.pressed.connect(func(): divested.emit())
+	row.add_child(btn)
+	return row
+
 
 func _make_upgrade_row(label_text: String, desc_text: String, cost: int, key: String, accent: Color) -> HBoxContainer:
 	var row := HBoxContainer.new()

@@ -15,6 +15,8 @@ enum WeaponType {
 @export var base_damage: int = 2
 @export var base_shots: int = 1  # machine gun uses 3
 
+var gold_invested: int = 0
+
 
 func get_total_damage() -> int:
 	var total := base_damage
@@ -48,6 +50,8 @@ func get_upgrade_cost() -> int:
 
 
 func get_sell_value() -> int:
+	if gold_invested > 0:
+		return floori(gold_invested * 0.75)
 	return 2 + level
 
 

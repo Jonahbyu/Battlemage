@@ -4,6 +4,7 @@ extends RefCounted
 var spell_data: SpellData
 # SpellTrigger.Trigger (int) -> fire count (int)
 var triggers: Dictionary = {}
+var gold_invested: int = 0
 
 
 func _init(data: SpellData) -> void:
@@ -23,6 +24,11 @@ func has_any_trigger() -> bool:
 
 func upgrade_trigger(trigger: int) -> void:
 	triggers[trigger] = int(triggers.get(trigger, 0)) + 1
+
+
+func reset_triggers() -> void:
+	triggers.clear()
+	gold_invested = 0
 
 
 func get_upgrade_cost(trigger: int) -> int:

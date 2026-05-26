@@ -331,47 +331,57 @@ func _ready() -> void:
 	add_child(_mage_shop)
 	_mage_shop.trigger_bought.connect(_on_mage_trigger_bought)
 	_mage_shop.mage_effect_upgraded.connect(_on_mage_effect_upgraded)
+	_mage_shop.triggers_divested.connect(_on_mage_triggers_divested)
+	_mage_shop.mage_effect_divested.connect(_on_mage_effect_divested)
 
 	_goblin_shop_data = GoblinShopData.new()
 	_goblin_shop = GoblinShop.new()
 	add_child(_goblin_shop)
 	_goblin_shop.upgrade_bought.connect(_on_goblin_upgrade_bought)
+	_goblin_shop.divested.connect(_on_goblin_shop_divested)
 
 	_elf_shop_data = ElfShopData.new()
 	_elf_shop = ElfShop.new()
 	add_child(_elf_shop)
 	_elf_shop.upgrade_bought.connect(_on_elf_upgrade_bought)
+	_elf_shop.divested.connect(_on_elf_shop_divested)
 
 	_covenant_shop_data = CovenantShopData.new()
 	_covenant_shop = CovenantShop.new()
 	add_child(_covenant_shop)
 	_covenant_shop.upgrade_bought.connect(_on_covenant_upgrade_bought)
+	_covenant_shop.divested.connect(_on_covenant_shop_divested)
 
 	_aztec_shop_data = AztecShopData.new()
 	_aztec_shop = AztecShop.new()
 	add_child(_aztec_shop)
 	_aztec_shop.upgrade_bought.connect(_on_aztec_upgrade_bought)
+	_aztec_shop.divested.connect(_on_aztec_shop_divested)
 
 	_construct_shop_data = ConstructShopData.new()
 	_construct_shop = ConstructShop.new()
 	add_child(_construct_shop)
 	_construct_shop.upgrade_bought.connect(_on_construct_upgrade_bought)
+	_construct_shop.divested.connect(_on_construct_shop_divested)
 
 	_reaper_shop_data = ReaperShopData.new()
 	_reaper_shop = ReaperShop.new()
 	add_child(_reaper_shop)
 	_reaper_shop.upgrade_bought.connect(_on_reaper_upgrade_bought)
+	_reaper_shop.divested.connect(_on_reaper_shop_divested)
 
 	_myconid_shop_data = MyconidShopData.new()
 	_myconid_shop = MyconidShop.new()
 	add_child(_myconid_shop)
 	_myconid_shop.upgrade_bought.connect(_on_myconid_upgrade_bought)
 	_myconid_shop.spore_distributed.connect(_on_myconid_spore_distributed)
+	_myconid_shop.divested.connect(_on_myconid_shop_divested)
 
 	_satyr_shop_data = SatyrShopData.new()
 	_satyr_shop = SatyrShop.new()
 	add_child(_satyr_shop)
 	_satyr_shop.upgrade_bought.connect(_on_satyr_upgrade_bought)
+	_satyr_shop.divested.connect(_on_satyr_shop_divested)
 
 	_human_shop = HumanShop.new()
 	_human_shop.weapon_templates = WEAPON_TEMPLATES
@@ -636,7 +646,7 @@ func _build_enemy_shop_data() -> void:
 func _on_continue_pressed() -> void:
 	continue_button.visible = false
 	_discovery_from_combat = true
-	var interest := _gold / 10
+	var interest := _gold / 5
 	_gold_income += 1
 	_gold += _gold_income
 	if interest > 0:
@@ -1533,19 +1543,26 @@ func _on_goblin_upgrade_bought(key: String) -> void:
 	if _gold < cost:
 		return
 	_gold -= cost
+	_goblin_shop_data.gold_invested += cost
 	match key:
 		"budget":
 			_goblin_shop_data.stat_budget += 1
+			_goblin_shop_data.stat_budget_purchases += 1
 		"reborn":
 			_goblin_shop_data.reborn_chance = mini(_goblin_shop_data.reborn_chance + 10, 50)
+			_goblin_shop_data.reborn_purchases += 1
 		"divine_shield":
 			_goblin_shop_data.divine_shield_chance = mini(_goblin_shop_data.divine_shield_chance + 10, 50)
+			_goblin_shop_data.divine_shield_purchases += 1
 		"poisonous":
 			_goblin_shop_data.poisonous_chance = mini(_goblin_shop_data.poisonous_chance + 10, 50)
+			_goblin_shop_data.poisonous_purchases += 1
 		"taunt":
 			_goblin_shop_data.taunt_chance = mini(_goblin_shop_data.taunt_chance + 10, 50)
+			_goblin_shop_data.taunt_purchases += 1
 		"windfury":
 			_goblin_shop_data.windfury_chance = mini(_goblin_shop_data.windfury_chance + 10, 50)
+			_goblin_shop_data.windfury_purchases += 1
 	_save_resources()
 	_update_resource_bar()
 	_goblin_shop.refresh_gold(_gold)
@@ -1558,6 +1575,7 @@ func _on_elf_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_elf_shop_data.gold_invested += cost
 			_elf_shop_data.echo_stat_percent += 10
 			_elf_shop_data.echo_stat_purchases += 1
 		"max_echoes":
@@ -1567,6 +1585,7 @@ func _on_elf_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_elf_shop_data.gold_invested += cost
 			_elf_shop_data.max_echoes += 1
 			_elf_shop_data.max_echoes_purchases += 1
 	_save_resources()
@@ -1581,6 +1600,7 @@ func _on_covenant_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_covenant_shop_data.gold_invested += cost
 			_covenant_shop_data.bond_share_percent += 10
 			_covenant_shop_data.bond_share_purchases += 1
 		"berserk":
@@ -1588,6 +1608,7 @@ func _on_covenant_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_covenant_shop_data.gold_invested += cost
 			_covenant_shop_data.berserk_multiplier_percent += 10
 			_covenant_shop_data.berserk_purchases += 1
 	_save_resources()
@@ -1602,6 +1623,7 @@ func _on_aztec_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_aztec_shop_data.gold_invested += cost
 			_aztec_shop_data.blessing_rate += 1
 			_aztec_shop_data.blessing_purchases += 1
 		"tribute_rate":
@@ -1609,6 +1631,7 @@ func _on_aztec_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_aztec_shop_data.gold_invested += cost
 			_aztec_shop_data.tribute_rate += 1
 			_aztec_shop_data.tribute_purchases += 1
 		"sacrifice_rate":
@@ -1616,6 +1639,7 @@ func _on_aztec_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_aztec_shop_data.gold_invested += cost
 			_aztec_shop_data.sacrifice_rate += 1
 			_aztec_shop_data.sacrifice_purchases += 1
 		"tribute":
@@ -1641,6 +1665,7 @@ func _on_construct_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_construct_shop_data.gold_invested += cost
 			_construct_shop_data.charge_cache += 3
 			_construct_shop_data.cache_purchases += 1
 		"recoil":
@@ -1648,6 +1673,7 @@ func _on_construct_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_construct_shop_data.gold_invested += cost
 			_construct_shop_data.recoil_charge += 1
 			_construct_shop_data.recoil_purchases += 1
 		"resonance":
@@ -1655,6 +1681,7 @@ func _on_construct_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_construct_shop_data.gold_invested += cost
 			_construct_shop_data.resonance_charge += 1
 			_construct_shop_data.resonance_purchases += 1
 	_save_resources()
@@ -1669,6 +1696,7 @@ func _on_reaper_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_reaper_shop_data.gold_invested += cost
 			_reaper_shop_data.doom_damage += 25
 			_reaper_shop_data.damage_purchases += 1
 		"reaper_aura":
@@ -1676,6 +1704,7 @@ func _on_reaper_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_reaper_shop_data.gold_invested += cost
 			_reaper_shop_data.reaper_aura_bonus += 1
 			_reaper_shop_data.aura_purchases += 1
 	_save_resources()
@@ -1690,6 +1719,7 @@ func _on_myconid_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_myconid_shop_data.gold_invested += cost
 			_myconid_shop_data.sporulation_rate += 1
 			_myconid_shop_data.sporulation_purchases += 1
 		"spore_buff":
@@ -1697,6 +1727,7 @@ func _on_myconid_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_myconid_shop_data.gold_invested += cost
 			_myconid_shop_data.spore_buff_level += 1
 			_myconid_shop_data.spore_buff_purchases += 1
 		"buy_spores":
@@ -1720,6 +1751,7 @@ func _on_satyr_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_satyr_shop_data.gold_invested += cost
 			_satyr_shop_data.crimson_damage += 5
 			_satyr_shop_data.crimson_purchases += 1
 		"gold":
@@ -1727,6 +1759,7 @@ func _on_satyr_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_satyr_shop_data.gold_invested += cost
 			_satyr_shop_data.gold_atk_bonus += 1
 			_satyr_shop_data.gold_purchases += 1
 		"silver":
@@ -1734,6 +1767,7 @@ func _on_satyr_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_satyr_shop_data.gold_invested += cost
 			_satyr_shop_data.silver_bonus_damage += 5
 			_satyr_shop_data.silver_purchases += 1
 		"green":
@@ -1741,6 +1775,7 @@ func _on_satyr_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_satyr_shop_data.gold_invested += cost
 			_satyr_shop_data.green_stat_bonus += 1
 			_satyr_shop_data.green_purchases += 1
 		"black":
@@ -1748,6 +1783,7 @@ func _on_satyr_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_satyr_shop_data.gold_invested += cost
 			_satyr_shop_data.black_debuff_percent += 10
 			_satyr_shop_data.black_purchases += 1
 		"prismatic":
@@ -1755,11 +1791,93 @@ func _on_satyr_upgrade_bought(key: String) -> void:
 			if _gold < cost:
 				return
 			_gold -= cost
+			_satyr_shop_data.gold_invested += cost
 			_satyr_shop_data.prismatic_percent += 5
 			_satyr_shop_data.prismatic_purchases += 1
 	_save_resources()
 	_update_resource_bar()
 	_satyr_shop.refresh_gold(_gold)
+
+
+func _divest_shop(data: Resource, shop) -> void:
+	var refund := floori(data.gold_invested * 0.75)
+	data.reset()
+	_gold += refund
+	_save_resources()
+	_update_resource_bar()
+	shop.refresh_gold(_gold)
+
+
+func _on_goblin_shop_divested() -> void:
+	_divest_shop(_goblin_shop_data, _goblin_shop)
+
+
+func _on_elf_shop_divested() -> void:
+	_divest_shop(_elf_shop_data, _elf_shop)
+
+
+func _on_covenant_shop_divested() -> void:
+	_divest_shop(_covenant_shop_data, _covenant_shop)
+
+
+func _on_aztec_shop_divested() -> void:
+	var refund := floori(_aztec_shop_data.gold_invested * 0.75)
+	_aztec_shop_data.reset()
+	_gold += refund
+	_save_resources()
+	_update_resource_bar()
+	_aztec_shop.refresh_gold(_gold, _player_hp, _aztec_tribute_used, _aztec_sacrifice_used)
+
+
+func _on_construct_shop_divested() -> void:
+	_divest_shop(_construct_shop_data, _construct_shop)
+
+
+func _on_reaper_shop_divested() -> void:
+	_divest_shop(_reaper_shop_data, _reaper_shop)
+
+
+func _on_myconid_shop_divested() -> void:
+	var refund := floori(_myconid_shop_data.gold_invested * 0.75)
+	_myconid_shop_data.reset()
+	_gold += refund
+	_save_resources()
+	_update_resource_bar()
+	_myconid_shop.refresh_gold(_gold, _get_myconid_board_units())
+
+
+func _on_satyr_shop_divested() -> void:
+	_divest_shop(_satyr_shop_data, _satyr_shop)
+
+
+func _on_mage_triggers_divested() -> void:
+	var target := _mage_shop.get_target_card()
+	if not is_instance_valid(target) or target.equipped_spell == null:
+		return
+	var inst: SpellInstance = target.equipped_spell
+	if inst.gold_invested == 0:
+		return
+	var refund := floori(inst.gold_invested * 0.75)
+	_gold += refund
+	inst.reset_triggers()
+	target.refresh_display()
+	_save_resources()
+	_update_resource_bar()
+	_mage_shop.refresh(_gold)
+
+
+func _on_mage_effect_divested() -> void:
+	var target := _mage_shop.get_target_card()
+	if not is_instance_valid(target) or target.mage_invested_gold == 0:
+		return
+	var refund := floori(target.mage_invested_gold * 0.75)
+	_gold += refund
+	target.mage_effect_level = 1
+	target.mage_invested_gold = 0
+	target.refresh_display()
+	_save_resources()
+	_update_resource_bar()
+	_mage_shop.refresh(_gold)
 
 
 func _give_spore_to(card: UnitCard, amount: int) -> void:
@@ -1904,6 +2022,7 @@ func _on_mage_trigger_bought(trigger: int) -> void:
 	if _gold < cost:
 		return
 	_gold -= cost
+	inst.gold_invested += cost
 	inst.upgrade_trigger(trigger)
 	target.refresh_display()
 	_save_resources()
@@ -1919,6 +2038,7 @@ func _on_mage_effect_upgraded() -> void:
 	if _gold < cost:
 		return
 	_gold -= cost
+	target.mage_invested_gold += cost
 	target.mage_effect_level += 1
 	target.refresh_display()
 	_save_resources()
@@ -2390,7 +2510,11 @@ func _update_sell_label() -> void:
 func _update_resource_bar() -> void:
 	_update_support_slot_ui()
 	var next_income := _gold_income + 1
-	gold_label.text = "Gold: %d  (+%d/turn)" % [_gold, next_income]
+	var next_interest := _gold / 5
+	if next_interest > 0:
+		gold_label.text = "Gold: %d  (+%d/turn  +%d interest)" % [_gold, next_income, next_interest]
+	else:
+		gold_label.text = "Gold: %d  (+%d/turn)" % [_gold, next_income]
 	hp_label.text = "HP: %d" % _player_hp
 	hp_label.add_theme_color_override("font_color",
 		Color(1, 0.38, 0.38, 1) if _player_hp <= 30 else Color(0.55, 1.0, 0.55, 1))
@@ -2420,10 +2544,15 @@ func _card_to_dict(card: UnitCard) -> Dictionary:
 		"kw": card.current_keywords,
 		"radiant": card.is_radiant,
 		"weapon_level": card.equipped_weapon.level if card.equipped_weapon != null else -1,
+		"weapon_gold_invested": card.equipped_weapon.gold_invested if card.equipped_weapon != null else 0,
 		"backpack_type": card.backpack_weapon.weapon_type if card.backpack_weapon != null else -1,
 		"backpack_level": card.backpack_weapon.level if card.backpack_weapon != null else -1,
+		"backpack_gold_invested": card.backpack_weapon.gold_invested if card.backpack_weapon != null else 0,
 		"spell_path": spell_path,
 		"spell_triggers": spell_triggers,
+		"spell_gold_invested": card.equipped_spell.gold_invested if card.equipped_spell != null else 0,
+		"mage_effect_level": card.mage_effect_level,
+		"mage_invested_gold": card.mage_invested_gold,
 		"construct_charge": card.construct_charge,
 		"myconid_spores": card.myconid_spores,
 	}
@@ -2445,11 +2574,13 @@ func _apply_card_entry(card: UnitCard, entry) -> void:
 		var wlevel := int(entry.get("weapon_level", -1))
 		if wlevel >= 0 and card.equipped_weapon != null:
 			card.equipped_weapon.level = wlevel
+			card.equipped_weapon.gold_invested = int(entry.get("weapon_gold_invested", 0))
 		var btype := int(entry.get("backpack_type", -1))
 		var blevel := int(entry.get("backpack_level", -1))
 		if btype >= 0 and WEAPON_TEMPLATES.has(btype):
 			card.backpack_weapon = WEAPON_TEMPLATES[btype].duplicate()
 			card.backpack_weapon.level = blevel
+			card.backpack_weapon.gold_invested = int(entry.get("backpack_gold_invested", 0))
 		var spell_path: String = entry.get("spell_path", "")
 		if spell_path != "":
 			var sd: SpellData = load(spell_path)
@@ -2459,6 +2590,9 @@ func _apply_card_entry(card: UnitCard, entry) -> void:
 				if trig_dict is Dictionary:
 					for k in trig_dict:
 						card.equipped_spell.triggers[int(k)] = int(trig_dict[k])
+				card.equipped_spell.gold_invested = int(entry.get("spell_gold_invested", 0))
+		card.mage_effect_level = int(entry.get("mage_effect_level", 1))
+		card.mage_invested_gold = int(entry.get("mage_invested_gold", 0))
 		card.construct_charge = int(entry.get("construct_charge", 0))
 		card.myconid_spores = int(entry.get("myconid_spores", 0))
 		if card.data != null and card.data.myconid_effect == MyconidEffect.Effect.SPOREGUARD \
@@ -2706,6 +2840,7 @@ func _on_human_weapon_bought(wtype: int) -> void:
 	_gold -= price
 	_pending_weapon_discount = 0
 	var new_weapon := template.duplicate()
+	new_weapon.gold_invested = price
 	if card.equipped_weapon == null:
 		card.equipped_weapon = new_weapon
 	else:
@@ -2728,6 +2863,7 @@ func _on_human_weapon_upgraded() -> void:
 		return
 	_gold -= cost
 	_pending_weapon_discount = 0
+	w.gold_invested += cost
 	w.level += 1
 	if card.data.human_effect == HumanEffect.Effect.DUAL_WIELD and card.backpack_weapon != null:
 		card.backpack_weapon.level += 1

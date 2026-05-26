@@ -12,6 +12,8 @@ var sporulation_purchases: int = 0
 var spore_buff_level: int = 1
 var spore_buff_purchases: int = 0
 
+var gold_invested: int = 0
+
 
 func sporulation_cost() -> int:
 	return 4 + sporulation_purchases * 2 + GameData.shop_cost_bonus
@@ -21,6 +23,15 @@ func spore_buff_cost() -> int:
 	return 6 + spore_buff_purchases * 3 + GameData.shop_cost_bonus
 
 
+func reset() -> void:
+	sporulation_rate -= sporulation_purchases
+	spore_buff_level -= spore_buff_purchases
+	sporulation_purchases = 0
+	spore_buff_purchases = 0
+	gold_invested = 0
+	# spore_pool intentionally not reset — earned spores persist
+
+
 func to_dict() -> Dictionary:
 	return {
 		"spore_pool": spore_pool,
@@ -28,6 +39,7 @@ func to_dict() -> Dictionary:
 		"sporulation_purchases": sporulation_purchases,
 		"spore_buff_level": spore_buff_level,
 		"spore_buff_purchases": spore_buff_purchases,
+		"gold_invested": gold_invested,
 	}
 
 
@@ -37,3 +49,4 @@ func from_dict(d: Dictionary) -> void:
 	sporulation_purchases = int(d.get("sporulation_purchases", 0))
 	spore_buff_level = int(d.get("spore_buff_level", 1))
 	spore_buff_purchases = int(d.get("spore_buff_purchases", 0))
+	gold_invested = int(d.get("gold_invested", 0))

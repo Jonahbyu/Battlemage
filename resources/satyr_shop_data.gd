@@ -25,6 +25,8 @@ var black_purchases: int = 0
 var prismatic_percent: int = 20
 var prismatic_purchases: int = 0
 
+var gold_invested: int = 0
+
 
 func crimson_cost() -> int:
 	return 4 + crimson_purchases * 2 + GameData.shop_cost_bonus
@@ -50,6 +52,22 @@ func prismatic_cost() -> int:
 	return 6 + prismatic_purchases * 2 + GameData.shop_cost_bonus
 
 
+func reset() -> void:
+	crimson_damage -= crimson_purchases * 5
+	gold_atk_bonus -= gold_purchases
+	silver_bonus_damage -= silver_purchases * 5
+	green_stat_bonus -= green_purchases
+	black_debuff_percent -= black_purchases * 10
+	prismatic_percent -= prismatic_purchases * 5
+	crimson_purchases = 0
+	gold_purchases = 0
+	silver_purchases = 0
+	green_purchases = 0
+	black_purchases = 0
+	prismatic_purchases = 0
+	gold_invested = 0
+
+
 func to_dict() -> Dictionary:
 	return {
 		"crimson_damage": crimson_damage,
@@ -64,6 +82,7 @@ func to_dict() -> Dictionary:
 		"black_purchases": black_purchases,
 		"prismatic_percent": prismatic_percent,
 		"prismatic_purchases": prismatic_purchases,
+		"gold_invested": gold_invested,
 	}
 
 
@@ -80,3 +99,4 @@ func from_dict(d: Dictionary) -> void:
 	black_purchases = int(d.get("black_purchases", 0))
 	prismatic_percent = int(d.get("prismatic_percent", 20))
 	prismatic_purchases = int(d.get("prismatic_purchases", 0))
+	gold_invested = int(d.get("gold_invested", 0))

@@ -5,6 +5,7 @@ var echo_stat_percent: int = 50
 var max_echoes: int = 2
 var echo_stat_purchases: int = 0
 var max_echoes_purchases: int = 0
+var gold_invested: int = 0
 
 
 func echo_stat_cost() -> int:
@@ -15,12 +16,21 @@ func max_echoes_cost() -> int:
 	return 5 + max_echoes_purchases * 2 + GameData.shop_cost_bonus
 
 
+func reset() -> void:
+	echo_stat_percent -= echo_stat_purchases * 10
+	max_echoes -= max_echoes_purchases
+	echo_stat_purchases = 0
+	max_echoes_purchases = 0
+	gold_invested = 0
+
+
 func to_dict() -> Dictionary:
 	return {
 		"echo_stat_percent": echo_stat_percent,
 		"max_echoes": max_echoes,
 		"echo_stat_purchases": echo_stat_purchases,
 		"max_echoes_purchases": max_echoes_purchases,
+		"gold_invested": gold_invested,
 	}
 
 
@@ -29,3 +39,4 @@ func from_dict(d: Dictionary) -> void:
 	max_echoes = int(d.get("max_echoes", 2))
 	echo_stat_purchases = int(d.get("echo_stat_purchases", 0))
 	max_echoes_purchases = int(d.get("max_echoes_purchases", 0))
+	gold_invested = int(d.get("gold_invested", 0))
