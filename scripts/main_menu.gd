@@ -1,7 +1,9 @@
 extends Control
 
-# Rebuild the whole UI on enter so slot summaries are always fresh.
+var _m: bool = false  # true when running on mobile
+
 func _ready() -> void:
+	_m = Platform.is_mobile()
 	_build_ui()
 
 
@@ -40,7 +42,7 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "BATTLEMAGE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 56)
+	title.add_theme_font_size_override("font_size", 48 if _m else 56)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
 	inner.add_child(title)
 
@@ -75,28 +77,42 @@ func _build_ui() -> void:
 	inner.add_child(_hsep())
 
 	# ── History & Exit ──────────────────────────────────────────────────────────
-	var bottom := HBoxContainer.new()
+	var bottom: BoxContainer = VBoxContainer.new() if _m else HBoxContainer.new()
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
-	bottom.add_theme_constant_override("separation", 16)
+	bottom.add_theme_constant_override("separation", 12 if _m else 16)
 	inner.add_child(bottom)
 
 	var hist_btn := Button.new()
 	hist_btn.text = "Run History"
-	hist_btn.custom_minimum_size = Vector2(180, 44)
+	hist_btn.custom_minimum_size = Vector2(200, 56 if _m else 44)
 	hist_btn.pressed.connect(_on_history_pressed)
 	bottom.add_child(hist_btn)
 
 	var manual_btn := Button.new()
 	manual_btn.text = "Unit Manual"
-	manual_btn.custom_minimum_size = Vector2(180, 44)
+	manual_btn.custom_minimum_size = Vector2(200, 56 if _m else 44)
 	manual_btn.pressed.connect(_on_manual_pressed)
 	bottom.add_child(manual_btn)
 
 	var exit_btn := Button.new()
 	exit_btn.text = "Exit Game"
-	exit_btn.custom_minimum_size = Vector2(180, 44)
+	exit_btn.custom_minimum_size = Vector2(200, 56 if _m else 44)
 	exit_btn.pressed.connect(_on_exit_pressed)
 	bottom.add_child(exit_btn)
+
+	inner.add_child(_hsep())
+
+	var ui_btn := Button.new()
+	ui_btn.text = _ui_mode_label()
+	ui_btn.add_theme_font_size_override("font_size", 11)
+	ui_btn.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
+	ui_btn.flat = true
+	ui_btn.pressed.connect(func():
+		var next: int = ({0: 1, 1: -1, -1: 0} as Dictionary)[Platform.override_mode]
+		Platform.set_override(next)
+		_m = Platform.is_mobile()
+		_build_ui())
+	inner.add_child(ui_btn)
 
 
 # ── Slot row ─────────────────────────────────────────────────────────────────
@@ -140,13 +156,13 @@ func _build_slot_row(idx: int) -> Control:
 	hbox.add_child(info)
 
 	if occupied:
-		var round_num: int = int(slot.get("round", 0))
+		var map_row: int   = int(slot.get("map_row", 0))
 		var hp: int        = int(slot.get("player_hp", 100))
 		var tier: int      = int(slot.get("tier", 1))
 
 		var stats := Label.new()
-		stats.text = "Battle %d / %d   ·   HP %d   ·   Tier %d" % [
-			round_num, GameData.MAX_BATTLES, hp, tier]
+		stats.text = "Turn %d / 13   ·   HP %d   ·   Tier %d" % [
+			map_row + 1, hp, tier]
 		stats.add_theme_color_override("font_color", Color(0.85, 0.85, 0.90))
 		stats.add_theme_font_size_override("font_size", 13)
 		info.add_child(stats)
@@ -180,19 +196,19 @@ func _build_slot_row(idx: int) -> Control:
 	if occupied:
 		var cont_btn := Button.new()
 		cont_btn.text = "Continue"
-		cont_btn.custom_minimum_size = Vector2(110, 36)
+		cont_btn.custom_minimum_size = Vector2(110, 48 if _m else 36)
 		cont_btn.pressed.connect(_on_continue_slot.bind(idx))
 		btns.add_child(cont_btn)
 
 		var clear_btn := Button.new()
 		clear_btn.text = "Clear"
-		clear_btn.custom_minimum_size = Vector2(110, 36)
+		clear_btn.custom_minimum_size = Vector2(110, 48 if _m else 36)
 		clear_btn.pressed.connect(_on_clear_slot.bind(idx))
 		btns.add_child(clear_btn)
 	else:
 		var new_btn := Button.new()
 		new_btn.text = "New Run"
-		new_btn.custom_minimum_size = Vector2(110, 36)
+		new_btn.custom_minimum_size = Vector2(110, 48 if _m else 36)
 		new_btn.pressed.connect(_on_new_slot.bind(idx))
 		btns.add_child(new_btn)
 
@@ -235,7 +251,7 @@ func _build_difficulty_section() -> Control:
 
 	var prev_btn := Button.new()
 	prev_btn.text = "<"
-	prev_btn.custom_minimum_size = Vector2(36, 36)
+	prev_btn.custom_minimum_size = Vector2(44 if _m else 36, 44 if _m else 36)
 	prev_btn.disabled = level <= 0
 	prev_btn.pressed.connect(func():
 		GameData.set_difficulty(level - 1)
@@ -253,7 +269,7 @@ func _build_difficulty_section() -> Control:
 
 	var next_btn := Button.new()
 	next_btn.text = ">"
-	next_btn.custom_minimum_size = Vector2(36, 36)
+	next_btn.custom_minimum_size = Vector2(44 if _m else 36, 44 if _m else 36)
 	next_btn.disabled = level >= max_lvl
 	next_btn.pressed.connect(func():
 		GameData.set_difficulty(level + 1)
@@ -329,7 +345,7 @@ func _build_gauntlet_section() -> Control:
 
 	var enter_btn := Button.new()
 	enter_btn.text = "Enter Gauntlet  (use last winning board as challenger)"
-	enter_btn.custom_minimum_size = Vector2(0, 44)
+	enter_btn.custom_minimum_size = Vector2(0, 56 if _m else 44)
 	enter_btn.add_theme_color_override("font_color", Color(1.0, 0.80, 0.20))
 	enter_btn.pressed.connect(_on_gauntlet_pressed)
 	vbox.add_child(enter_btn)
@@ -386,19 +402,28 @@ func _hsep() -> HSeparator:
 	return HSeparator.new()
 
 
+func _ui_mode_label() -> String:
+	match Platform.override_mode:
+		1:  return "UI Mode: Force Mobile  (click to → Desktop)"
+		-1: return "UI Mode: Force Desktop  (click to → Auto)"
+		_:
+			var detected := "Mobile" if (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")) else "Desktop"
+			return "UI Mode: Auto (%s detected)  (click to → Force Mobile)" % detected
+
+
 # ── Button callbacks ──────────────────────────────────────────────────────────
 
 func _on_continue_slot(idx: int) -> void:
 	GameData.current_slot = idx
 	GameData.gauntlet_mode = false
-	get_tree().change_scene_to_file("res://scenes/combat_arena.tscn")
+	Platform.go(get_tree(), "res://scenes/combat_arena.tscn")
 
 
 func _on_new_slot(idx: int) -> void:
 	GameData.clear_slot(idx)
 	GameData.current_slot = idx
 	GameData.gauntlet_mode = false
-	get_tree().change_scene_to_file("res://scenes/combat_arena.tscn")
+	Platform.go(get_tree(), "res://scenes/combat_arena.tscn")
 
 
 func _on_clear_slot(idx: int) -> void:
@@ -416,7 +441,7 @@ func _on_gauntlet_pressed() -> void:
 		return
 	GameData.begin_gauntlet(last_slot)
 	GameData.current_slot = -1
-	get_tree().change_scene_to_file("res://scenes/combat_arena.tscn")
+	Platform.go(get_tree(), "res://scenes/combat_arena.tscn")
 
 
 func _on_manual_pressed() -> void:
@@ -465,7 +490,7 @@ func _show_confirm(message: String, on_confirm: Callable) -> void:
 
 	var yes := Button.new()
 	yes.text = "Confirm"
-	yes.custom_minimum_size = Vector2(100, 36)
+	yes.custom_minimum_size = Vector2(100, 48 if _m else 36)
 	yes.pressed.connect(func():
 		overlay.queue_free()
 		box.queue_free()
@@ -474,7 +499,7 @@ func _show_confirm(message: String, on_confirm: Callable) -> void:
 
 	var no := Button.new()
 	no.text = "Cancel"
-	no.custom_minimum_size = Vector2(100, 36)
+	no.custom_minimum_size = Vector2(100, 48 if _m else 36)
 	no.pressed.connect(func():
 		overlay.queue_free()
 		box.queue_free())
@@ -547,7 +572,7 @@ func _show_history_overlay() -> void:
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
-	close_btn.custom_minimum_size = Vector2(120, 36)
+	close_btn.custom_minimum_size = Vector2(160 if _m else 120, 48 if _m else 36)
 	close_btn.pressed.connect(func():
 		overlay.queue_free()
 		panel.queue_free())

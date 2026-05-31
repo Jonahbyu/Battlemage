@@ -177,6 +177,7 @@ const ROUND_SAVE_PATH := "user://round.json"
 const SELL_COUNTER_SAVE_PATH := "user://sell_counter.json"
 const RESOURCES_SAVE_PATH := "user://resources.json"
 const FACTIONS_SAVE_PATH := "user://active_factions.json"
+const MAP_SAVE_PATH := "user://map.json"
 
 const ALL_PLAYABLE_FACTIONS: Array = [
 	RaceType.Race.HUMAN, RaceType.Race.ELF, RaceType.Race.MAGE,
@@ -284,6 +285,19 @@ var _targeting_source: UnitCard = null
 var _targeting_valid: Array = []
 var _targeting_callback: Callable
 var _targeting_line: Line2D = null
+
+# ── Map system ────────────────────────────────────────────────────────────────
+var _map_screen: MapScreen = null
+var _map_data: Dictionary = {}
+var _map_current_row: int = 0        # which row is currently being selected/played
+var _combat_node_difficulty: float = 1.0  # multiplier set by map node choice
+var _pending_node_is_elite: bool = false  # relic selection follows this combat
+var _pending_node_is_boss: bool = false   # victory follows this combat
+var _relics: Array = []              # list of relic IDs acquired during the run
+var _win_streak: int = 0             # consecutive wins (for battle_hardened relic)
+var _non_combat_turn: bool = false   # true while a rest/event turn is in progress
+var _relics_label: Label = null      # shows current relics in UI
+var _go_to_map_btn: Button = null    # shown after discovery; lets player shop before opening map
 
 
 func _get_tier_upgrade_cost() -> int:
@@ -425,6 +439,33 @@ func _ready() -> void:
 		"Covenant": Callable(self, "_all_shops_open_covenant"),
 	}))
 
+	# Map screen (overlays combat arena for encounter selection).
+	# z_index=5 keeps it above normal UI but below discovery_screen (z=10),
+	# so a triple bonus pick is never hidden behind the map panel.
+	_map_screen = MapScreen.new()
+	_map_screen.z_index = 5
+	add_child(_map_screen)
+	_map_screen.node_selected.connect(_on_map_node_selected)
+	_map_screen.relic_selected.connect(_on_relic_selected)
+	_map_screen.rest_completed.connect(_on_rest_completed)
+	_map_screen.event_completed.connect(_on_event_completed)
+	discovery_screen.z_index = 10
+
+	# Relics label in resource bar
+	_relics_label = Label.new()
+	_relics_label.add_theme_font_size_override("font_size", 11)
+	_relics_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	$RootHBox/MainLayout/ResourceBar.add_child(_relics_label)
+
+	# "Go to Map" button — appears after discovery/relic pick so player can shop first
+	_go_to_map_btn = Button.new()
+	_go_to_map_btn.text = "Go to Map  ▶"
+	_go_to_map_btn.custom_minimum_size = Vector2(150, 44)
+	_go_to_map_btn.add_theme_font_size_override("font_size", 14)
+	_go_to_map_btn.visible = false
+	_go_to_map_btn.pressed.connect(_on_go_to_map_pressed)
+	$RootHBox/MainLayout/CenterRow.add_child(_go_to_map_btn)
+
 	# If a slot is active, write its saved data into the individual cache files
 	# so the existing load functions pick it up transparently.
 	if not GameData.gauntlet_mode and GameData.current_slot >= 0:
@@ -443,13 +484,20 @@ func _ready() -> void:
 	_build_all_shops_panel()
 	_populate_player_board()
 	_populate_bench_from_save()
-	_populate_enemy_board()
+	# For new games, enemy board is populated after map node selection (not yet).
+	if not _new_game_discovery:
+		_populate_enemy_board()
+	if not GameData.gauntlet_mode:
+		_load_map()
 	call_deferred("_setup_support_slot_panel")
 	if GameData.gauntlet_mode:
 		call_deferred("_enter_gauntlet_mode")
 
 	result_banner.visible = false
 	continue_button.visible = false
+	# New-game discovery: fight button hidden until map node chosen
+	if _new_game_discovery:
+		fight_button.visible = false
 	_update_sell_label()
 	_update_resource_bar()
 
@@ -462,7 +510,7 @@ func _populate_player_board() -> void:
 	var saved := _load_player_order()
 	if saved.is_empty():
 		_new_game_discovery = true
-		discovery_screen.activate(_player_tier)
+		discovery_screen.activate(_player_tier, 1 if "extra_reroll" in _relics else 0)
 	else:
 		for entry in saved:
 			var card: UnitCard = UnitCardScene.instantiate()
@@ -542,12 +590,12 @@ func _populate_enemy_board() -> void:
 		if card.data.race == RaceType.Race.MAGE:
 			card.mage_effect_level = maxi(1, 1 + _lifetime_gold / 15)
 
-		card.current_health = maxi(1, roundi(card.current_health * income_scale * GameData.enemy_hp_mult))
+		card.current_health = maxi(1, roundi(card.current_health * income_scale * GameData.enemy_hp_mult * _combat_node_difficulty))
 		if card.data.race == RaceType.Race.HUMAN and card.equipped_weapon != null:
 			# Humans already got their weapon level above; skip ATK scaling so weapon stats do the work
 			pass
 		else:
-			card.current_attack = maxi(1, roundi(card.current_attack * income_scale * GameData.enemy_atk_mult))
+			card.current_attack = maxi(1, roundi(card.current_attack * income_scale * GameData.enemy_atk_mult * _combat_node_difficulty))
 
 		_apply_enemy_faction_bonus(card, faction_theme)
 		card.refresh_display()
@@ -645,18 +693,33 @@ func _build_enemy_shop_data() -> void:
 
 func _on_continue_pressed() -> void:
 	continue_button.visible = false
+	if is_instance_valid(_go_to_map_btn):
+		_go_to_map_btn.visible = false
+	# Non-combat turn (rest/event) — just advance the map
+	if _non_combat_turn:
+		_non_combat_turn = false
+		_advance_map_row()
+		return
 	_discovery_from_combat = true
+	_apply_round_income()
+	var extra := 1 if "extra_reroll" in _relics else 0
+	discovery_screen.activate(_player_tier, extra)
+
+
+func _apply_round_income() -> void:
 	var interest := _gold / 5
-	_gold_income += 1
+	var income_extra := 1 if "income_boost" in _relics else 0
+	_gold_income += 1 + income_extra
 	_gold += _gold_income
+	if "double_interest" in _relics and interest > 0:
+		_gold += interest  # interest paid twice
 	if interest > 0:
 		_gold += interest
-		print("Interest: +%d gold (from %d saved)" % [interest, _gold - _gold_income - interest])
+		print("Interest: +%d gold" % interest)
 	_lifetime_gold += _gold_income + interest
 	_spell_shop.new_round()
 	_save_resources()
 	_update_resource_bar()
-	discovery_screen.activate(_player_tier)
 
 
 func _on_reset_pressed() -> void:
@@ -689,6 +752,10 @@ func _on_discovery_unit_chosen(unit_data: UnitData) -> void:
 		_connect_player_card(new_game_card)
 		_save_player_order()
 		_new_game_discovery = false
+		# First fight is automatic (no map choice). Populate enemy and show fight button.
+		_populate_enemy_board()
+		player_board.is_locked = false
+		fight_button.visible = true
 		return
 
 	var card: UnitCard = UnitCardScene.instantiate()
@@ -704,12 +771,21 @@ func _on_discovery_unit_chosen(unit_data: UnitData) -> void:
 		_round += 1
 		_save_round()
 		_rebuild_board_from_template()
+		_apply_relic_auras()
 		_reset_bench_units()
-		_populate_enemy_board()
-		player_board.is_locked = false
-		fight_button.visible = true
+		player_board.is_locked = true
+		fight_button.visible = false
 		result_banner.visible = false
 		_discovery_from_combat = false
+
+		if not GameData.gauntlet_mode:
+			if _pending_node_is_elite:
+				_pending_node_is_elite = false
+				_map_screen.show_relic_selection(_pick_random_relics(3))
+			else:
+				# Let player shop before opening the map
+				if is_instance_valid(_go_to_map_btn):
+					_go_to_map_btn.visible = true
 
 	_check_for_triples()
 
@@ -881,7 +957,7 @@ func _apply_triple(trio: Array) -> void:
 	_save_resources()
 
 	_discovery_from_combat = false
-	discovery_screen.activate(_player_tier)
+	discovery_screen.activate(_player_tier, 1 if "extra_reroll" in _relics else 0)
 
 
 # ── Surge ────────────────────────────────────────────────────────────────────
@@ -2526,6 +2602,7 @@ func _update_resource_bar() -> void:
 		tier_upgrade_button.visible = true
 		tier_upgrade_button.text = "Upgrade Tier  (%dg)" % cost
 		tier_upgrade_button.disabled = _gold < cost
+	_update_relics_label()
 
 
 # ── Persistence ───────────────────────────────────────────────────────────────
@@ -2617,7 +2694,7 @@ func _clear_cache_files() -> void:
 	if dir == null:
 		return
 	for path in [ORDER_SAVE_PATH, BENCH_SAVE_PATH, ROUND_SAVE_PATH,
-			SELL_COUNTER_SAVE_PATH, RESOURCES_SAVE_PATH, FACTIONS_SAVE_PATH]:
+			SELL_COUNTER_SAVE_PATH, RESOURCES_SAVE_PATH, FACTIONS_SAVE_PATH, MAP_SAVE_PATH]:
 		var fname: String = path.get_file()
 		if DirAccess.open("user://") != null and FileAccess.file_exists(path):
 			dir.remove(fname)
@@ -2737,6 +2814,9 @@ func _save_resources() -> void:
 		"reaper_shop": _reaper_shop_data.to_dict() if _reaper_shop_data != null else {},
 		"myconid_shop": _myconid_shop_data.to_dict() if _myconid_shop_data != null else {},
 		"satyr_shop": _satyr_shop_data.to_dict() if _satyr_shop_data != null else {},
+		"map_row": _map_current_row,
+		"relics": _relics,
+		"win_streak": _win_streak,
 	}
 	var file := FileAccess.open(RESOURCES_SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -2795,6 +2875,11 @@ func _load_resources() -> void:
 		var ssd = parsed.get("satyr_shop", {})
 		if ssd is Dictionary and not ssd.is_empty() and _satyr_shop_data != null:
 			_satyr_shop_data.from_dict(ssd)
+		_map_current_row = int(parsed.get("map_row", 0))
+		var rel = parsed.get("relics", [])
+		_relics = rel if rel is Array else []
+		_win_streak = int(parsed.get("win_streak", 0))
+		_update_relics_label()
 
 
 # ── Human shop (Armory) ───────────────────────────────────────────────────────
@@ -3140,8 +3225,28 @@ func _on_combat_ended(damage: int) -> void:
 		print("Warden: HSP permanently +%d!" % combat_manager.pending_hsp_bonus)
 
 	if damage <= 0:
-		# Victory after battle 25 (round index 24 because round increments post-discovery)
-		if _round == GameData.MAX_BATTLES - 1:
+		# Victory — apply relic effects
+		if "gold_bonus" in _relics:
+			_gold += 4
+		if "hp_restore" in _relics:
+			_player_hp = mini(_player_hp + 8, GameData.starting_player_hp + 20)
+		# Hard/elite bonus gold
+		if _combat_node_difficulty >= 1.35 and not _pending_node_is_boss:
+			var bonus := 6 if _combat_node_difficulty < 1.5 else 14
+			_gold += bonus
+			print("Difficulty bonus: +%d gold" % bonus)
+		# Win streak tracking for battle_hardened relic
+		_win_streak += 1
+		if "battle_hardened" in _relics and _win_streak > 0 and _win_streak % 3 == 0:
+			for entry: Dictionary in _board_template:
+				entry["atk"] = int(entry.get("atk", 1)) + 1
+			print("Battle Hardened: +1 ATK to all template units!")
+		_combat_node_difficulty = 1.0
+		# Boss victory ends the run
+		if _pending_node_is_boss:
+			_pending_node_is_boss = false
+			continue_button.visible = false
+			fight_button.visible = false
 			_save_resources()
 			_update_resource_bar()
 			_show_victory_screen()
@@ -3150,6 +3255,8 @@ func _on_combat_ended(damage: int) -> void:
 		_update_resource_bar()
 		_sync_to_slot()
 		return
+	_win_streak = 0
+	_combat_node_difficulty = 1.0
 	_player_hp -= damage
 	_save_resources()
 	_update_resource_bar()
@@ -3214,6 +3321,10 @@ func _collect_slot_data() -> Dictionary:
 		"reaper_shop":    _reaper_shop_data.to_dict()   if _reaper_shop_data   != null else {},
 		"myconid_shop":   _myconid_shop_data.to_dict()  if _myconid_shop_data  != null else {},
 		"satyr_shop":     _satyr_shop_data.to_dict()    if _satyr_shop_data    != null else {},
+		"map_row":   _map_current_row,
+		"relics":    _relics,
+		"map_data":  _map_data,
+		"win_streak": _win_streak,
 	}
 
 
@@ -3259,11 +3370,161 @@ func _write_slot_to_files(slot: Dictionary) -> void:
 		"reaper_shop":    slot.get("reaper_shop", {}),
 		"myconid_shop":   slot.get("myconid_shop", {}),
 		"satyr_shop":     slot.get("satyr_shop", {}),
+		"map_row":    slot.get("map_row", 0),
+		"relics":     slot.get("relics", []),
+		"win_streak": slot.get("win_streak", 0),
 	}
 	f = FileAccess.open(RESOURCES_SAVE_PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(res))
 		f.close()
+	var map_slot = slot.get("map_data", {})
+	if map_slot is Dictionary and not map_slot.is_empty():
+		f = FileAccess.open(MAP_SAVE_PATH, FileAccess.WRITE)
+		if f:
+			var map_with_row: Dictionary = map_slot.duplicate(true)
+			map_with_row["current_row"] = slot.get("map_row", 0)
+			f.store_string(JSON.stringify(map_with_row))
+			f.close()
+
+
+# ── Map system ────────────────────────────────────────────────────────────────
+
+func _on_map_node_selected(node_data: Dictionary) -> void:
+	var ntype: String = node_data.get("type", "combat")
+	match ntype:
+		"combat", "combat_hard", "elite", "boss":
+			var info: Dictionary = MapScreen.NODE_INFO.get(ntype, {})
+			_combat_node_difficulty = info.get("difficulty", 1.0)
+			_pending_node_is_elite = ntype == "elite"
+			_pending_node_is_boss = ntype == "boss"
+			_populate_enemy_board()
+			player_board.is_locked = false
+			fight_button.visible = true
+			_sync_to_slot()
+			_save_map()
+		"rest":
+			_apply_round_income()
+			_map_screen.show_rest(_player_hp, GameData.starting_player_hp + 20)
+		"event":
+			_apply_round_income()
+			_map_screen.show_event()
+
+
+func _advance_map_row() -> void:
+	_map_current_row += 1
+	_save_map()
+	_map_screen.show_map(_map_data, _map_current_row)
+
+
+func _on_go_to_map_pressed() -> void:
+	if is_instance_valid(_go_to_map_btn):
+		_go_to_map_btn.visible = false
+	_advance_map_row()
+
+
+func _on_relic_selected(relic_id: String) -> void:
+	if relic_id != "" and relic_id not in _relics:
+		_relics.append(relic_id)
+	_save_resources()
+	_update_relics_label()
+	# Let player shop before opening the map
+	if is_instance_valid(_go_to_map_btn):
+		_go_to_map_btn.visible = true
+
+
+func _on_rest_completed(choice: String) -> void:
+	if choice == "heal":
+		_player_hp = mini(_player_hp + 15, GameData.starting_player_hp + 20)
+		_save_resources()
+		_update_resource_bar()
+	elif choice == "fortify":
+		# Give a random bench unit +2 ATK and +4 HP permanently
+		var bench_cards: Array = player_bench.units.filter(
+			func(c: UnitCard) -> bool: return is_instance_valid(c) and c.data != null)
+		if not bench_cards.is_empty():
+			var target: UnitCard = bench_cards[randi() % bench_cards.size()]
+			target.current_attack += 2
+			target.current_health += 4
+			target.refresh_display()
+			_save_bench()
+			print("Rest: %s fortified (+2 ATK, +4 HP)" % target.data.display_name)
+	_advance_map_row()
+
+
+func _on_event_completed(gold_delta: int, hp_delta: int) -> void:
+	if gold_delta != 0:
+		_gold = maxi(0, _gold + gold_delta)
+	if hp_delta != 0:
+		_player_hp = clampi(_player_hp + hp_delta, 1, 150)
+	_save_resources()
+	_update_resource_bar()
+	_advance_map_row()
+
+
+func _apply_relic_auras() -> void:
+	for relic: String in _relics:
+		match relic:
+			"atk_aura":
+				for card: UnitCard in player_board.units:
+					if is_instance_valid(card) and card.data != null:
+						card.current_attack += 2
+						card.combat_temp_atk += 2
+						card.refresh_display()
+			"hp_aura":
+				for card: UnitCard in player_board.units:
+					if is_instance_valid(card) and card.data != null:
+						card.current_health += 10
+						card.combat_temp_hp += 10
+						card.refresh_display()
+
+
+func _pick_random_relics(count: int) -> Array:
+	var pool: Array = MapScreen.RELICS.filter(
+		func(r: Dictionary) -> bool: return not (r.get("id", "") in _relics))
+	pool.shuffle()
+	return pool.slice(0, mini(count, pool.size()))
+
+
+func _update_relics_label() -> void:
+	if not is_instance_valid(_relics_label):
+		return
+	if _relics.is_empty():
+		_relics_label.text = ""
+		return
+	var names: Array = _relics.map(func(rid: String) -> String:
+		for r: Dictionary in MapScreen.RELICS:
+			if r.get("id") == rid:
+				return r.get("name", rid)
+		return rid)
+	_relics_label.text = "Relics: " + "  |  ".join(names)
+
+
+func _save_map() -> void:
+	var file := FileAccess.open(MAP_SAVE_PATH, FileAccess.WRITE)
+	if file:
+		var save_data := _map_data.duplicate(true)
+		save_data["current_row"] = _map_current_row
+		file.store_string(JSON.stringify(save_data))
+		file.close()
+
+
+func _load_map() -> void:
+	if not FileAccess.file_exists(MAP_SAVE_PATH):
+		# Generate a new map for this run
+		var run_seed := int(Time.get_ticks_msec()) ^ (GameData.current_slot * 999983 + 1)
+		_map_data = _map_screen.generate_map(run_seed)
+		_map_current_row = 0
+		_save_map()
+		return
+	var file := FileAccess.open(MAP_SAVE_PATH, FileAccess.READ)
+	if file == null:
+		return
+	var parsed = JSON.parse_string(file.get_as_text())
+	file.close()
+	if parsed is Dictionary:
+		_map_data = parsed
+		_map_current_row = int(parsed.get("current_row", 0))
 
 
 func _sync_to_slot() -> void:
@@ -3275,7 +3536,7 @@ func _sync_to_slot() -> void:
 func _return_to_menu() -> void:
 	_sync_to_slot()
 	GameData.gauntlet_mode = false
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	Platform.go(get_tree(), "res://scenes/main_menu.tscn")
 
 
 # ── Victory screen ────────────────────────────────────────────────────────────
@@ -3286,7 +3547,7 @@ func _show_victory_screen() -> void:
 	GameData.unlock_next_difficulty()
 	GameData.add_history({
 		"result": "victory",
-		"battles": GameData.MAX_BATTLES,
+		"battles": _round + 1,
 		"date": Time.get_date_string_from_system(),
 		"unit_names": slot_data.get("unit_names", []),
 	})
@@ -3314,7 +3575,7 @@ func _show_victory_screen() -> void:
 	center.add_child(title_lbl)
 
 	var sub_lbl := Label.new()
-	sub_lbl.text = "You survived all %d battles!" % GameData.MAX_BATTLES
+	sub_lbl.text = "You defeated the boss and conquered the run!"
 	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub_lbl.add_theme_font_size_override("font_size", 20)
 	sub_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
@@ -3342,7 +3603,7 @@ func _show_victory_screen() -> void:
 		gauntlet_btn.pressed.connect(func():
 			GameData.begin_gauntlet(slot_data)
 			GameData.current_slot = -1
-			get_tree().change_scene_to_file("res://scenes/combat_arena.tscn"))
+			Platform.go(get_tree(), "res://scenes/combat_arena.tscn"))
 		btns.add_child(gauntlet_btn)
 
 	var menu_btn := Button.new()
@@ -3350,7 +3611,7 @@ func _show_victory_screen() -> void:
 	menu_btn.custom_minimum_size = Vector2(180, 48)
 	menu_btn.pressed.connect(func():
 		GameData.gauntlet_mode = false
-		get_tree().change_scene_to_file("res://scenes/main_menu.tscn"))
+		Platform.go(get_tree(), "res://scenes/main_menu.tscn"))
 	btns.add_child(menu_btn)
 
 
@@ -3566,7 +3827,7 @@ func _show_gauntlet_end(player_won: bool) -> void:
 	var msg   := ("Your board has been recorded as the new Champion!" if player_won
 		else "Better luck next time.")
 	var overlay := _gauntlet_info_overlay(title, msg, "Return to Menu",
-		func(): get_tree().change_scene_to_file("res://scenes/main_menu.tscn"))
+		func(): Platform.go(get_tree(), "res://scenes/main_menu.tscn"))
 	add_child(overlay)
 
 
@@ -3855,6 +4116,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_fight_pressed() -> void:
 	print("=== FIGHT pressed ===")
+	if is_instance_valid(_go_to_map_btn):
+		_go_to_map_btn.visible = false
 	_board_template = []
 	for card: UnitCard in player_board.units:
 		if is_instance_valid(card) and card.data != null:

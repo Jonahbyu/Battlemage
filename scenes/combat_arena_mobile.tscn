@@ -1,0 +1,160 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat_arena.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/board.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/combat_log.tscn" id="3"]
+[ext_resource type="Script" path="res://scripts/combat_manager.gd" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/bench.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/discovery_screen.tscn" id="6"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sell"]
+bg_color = Color(0.28, 0.08, 0.08, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.65, 0.18, 0.18, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="CombatArena" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.12, 0.14, 0.18, 1)
+mouse_filter = 2
+
+; On mobile RootHBox is a VBoxContainer so the combat log appears below
+; rather than to the right. All @onready paths remain identical to the
+; desktop scene so the shared combat_arena.gd script works unchanged.
+[node name="RootHBox" type="VBoxContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="MainLayout" type="VBoxContainer" parent="RootHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="TopBar" type="HBoxContainer" parent="RootHBox/MainLayout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ResetButton" type="Button" parent="RootHBox/MainLayout/TopBar"]
+layout_mode = 2
+text = "Reset Game"
+custom_minimum_size = Vector2(0, 44)
+
+[node name="TopBarSpacer" type="Control" parent="RootHBox/MainLayout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ToggleLogButton" type="Button" parent="RootHBox/MainLayout/TopBar"]
+layout_mode = 2
+text = "Show Log"
+custom_minimum_size = Vector2(0, 44)
+
+[node name="ResourceBar" type="HBoxContainer" parent="RootHBox/MainLayout"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="GoldLabel" type="Label" parent="RootHBox/MainLayout/ResourceBar"]
+layout_mode = 2
+text = "Gold: 0  (+1/turn)"
+theme_override_font_sizes/font_size = 13
+
+[node name="HPLabel" type="Label" parent="RootHBox/MainLayout/ResourceBar"]
+layout_mode = 2
+text = "HP: 100"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(1, 0.38, 0.38, 1)
+
+[node name="ResourceSpacer" type="Control" parent="RootHBox/MainLayout/ResourceBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TierLabel" type="Label" parent="RootHBox/MainLayout/ResourceBar"]
+layout_mode = 2
+text = "Tier 1"
+theme_override_font_sizes/font_size = 13
+
+[node name="TierUpgradeButton" type="Button" parent="RootHBox/MainLayout/ResourceBar"]
+layout_mode = 2
+text = "Upgrade Tier  (10g)"
+custom_minimum_size = Vector2(0, 44)
+
+[node name="EnemyBoard" parent="RootHBox/MainLayout" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CenterRow" type="HBoxContainer" parent="RootHBox/MainLayout"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+mouse_filter = 2
+
+[node name="FightButton" type="Button" parent="RootHBox/MainLayout/CenterRow"]
+layout_mode = 2
+text = "FIGHT!"
+custom_minimum_size = Vector2(130, 60)
+
+[node name="ResultBanner" type="Label" parent="RootHBox/MainLayout/CenterRow"]
+layout_mode = 2
+visible = false
+text = "Victory!"
+theme_override_font_sizes/font_size = 28
+
+[node name="ContinueButton" type="Button" parent="RootHBox/MainLayout/CenterRow"]
+layout_mode = 2
+visible = false
+text = "Continue"
+custom_minimum_size = Vector2(120, 60)
+
+[node name="PlayerBoard" parent="RootHBox/MainLayout" instance=ExtResource("2")]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerBench" parent="RootHBox/MainLayout" instance=ExtResource("5")]
+layout_mode = 2
+
+[node name="SellZone" type="Panel" parent="RootHBox/MainLayout"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 60)
+size_flags_vertical = 1
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sell")
+
+[node name="SellLabel" type="Label" parent="RootHBox/MainLayout/SellZone"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+text = "SELL  —  0 / 3  →  Discovery"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+
+; Combat log starts hidden on mobile — toggled via the Show Log button.
+; When visible it appears below the play area in this vertical layout.
+[node name="CombatLog" parent="RootHBox" instance=ExtResource("3")]
+layout_mode = 2
+visible = false
+
+[node name="CombatManager" type="Node" parent="."]
+script = ExtResource("4")
+
+[node name="DiscoveryScreen" parent="." instance=ExtResource("6")]
+
+[connection signal="pressed" from="RootHBox/MainLayout/ResourceBar/TierUpgradeButton" to="." method="_on_tier_upgrade_pressed"]
+[connection signal="pressed" from="RootHBox/MainLayout/TopBar/ResetButton" to="." method="_on_reset_pressed"]
+[connection signal="pressed" from="RootHBox/MainLayout/TopBar/ToggleLogButton" to="." method="_on_toggle_log_pressed"]
+[connection signal="pressed" from="RootHBox/MainLayout/CenterRow/FightButton" to="." method="_on_fight_pressed"]
+[connection signal="pressed" from="RootHBox/MainLayout/CenterRow/ContinueButton" to="." method="_on_continue_pressed"]

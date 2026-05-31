@@ -1476,7 +1476,7 @@ func _apply_aztec_blessing(board: Board) -> void:
 			break
 	if rate <= 0 or effective_gold <= 0:
 		return
-	var bonus := rate * effective_gold
+	var bonus := rate * (effective_gold / 2)
 	for card in board.units:
 		if not is_instance_valid(card) or card.is_dead:
 			continue

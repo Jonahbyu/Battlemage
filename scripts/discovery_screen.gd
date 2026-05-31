@@ -25,8 +25,11 @@ const ALL_UNITS := [
 	preload("res://resources/units/humans/gunner.tres"),
 	preload("res://resources/units/humans/commander.tres"),
 	preload("res://resources/units/mages/runecaller.tres"),
+	preload("res://resources/units/mages/amplifier.tres"),
 	preload("res://resources/units/mages/coin_sage.tres"),
 	preload("res://resources/units/mages/harrower.tres"),
+	preload("res://resources/units/mages/oracle.tres"),
+	preload("res://resources/units/mages/spellbinder.tres"),
 	preload("res://resources/units/mages/spellwright.tres"),
 	preload("res://resources/units/mages/warden.tres"),
 	# Tier 3
@@ -67,6 +70,7 @@ const ALL_UNITS := [
 	# Myconids
 	preload("res://resources/units/myconids/sporekeeper.tres"),
 	preload("res://resources/units/myconids/sporeling.tres"),
+	preload("res://resources/units/myconids/parasite.tres"),
 	preload("res://resources/units/myconids/myco_cap.tres"),
 	preload("res://resources/units/myconids/bloom.tres"),
 	preload("res://resources/units/myconids/spore_vent.tres"),
@@ -80,10 +84,98 @@ const ALL_UNITS := [
 	preload("res://resources/units/myconids/cultivator.tres"),
 	preload("res://resources/units/myconids/spore_sovereign.tres"),
 	preload("res://resources/units/myconids/fungal_ascendant.tres"),
+	# Constructs
+	preload("res://resources/units/constructs/winder.tres"),
+	preload("res://resources/units/constructs/capacitor.tres"),
+	preload("res://resources/units/constructs/reigniter.tres"),
+	preload("res://resources/units/constructs/volt_striker.tres"),
+	preload("res://resources/units/constructs/accumulator.tres"),
+	preload("res://resources/units/constructs/arc_coil.tres"),
+	preload("res://resources/units/constructs/coil_weaver.tres"),
+	preload("res://resources/units/constructs/discharge_engine.tres"),
+	preload("res://resources/units/constructs/iron_sentinel.tres"),
+	preload("res://resources/units/constructs/charge_siphon.tres"),
+	preload("res://resources/units/constructs/meltdown.tres"),
+	preload("res://resources/units/constructs/overload_core.tres"),
+	preload("res://resources/units/constructs/relay_node.tres"),
+	preload("res://resources/units/constructs/surge_conduit.tres"),
+	preload("res://resources/units/constructs/fission_core.tres"),
+	preload("res://resources/units/constructs/grand_capacitor.tres"),
+	preload("res://resources/units/constructs/recharge_protocol.tres"),
+	# Reapers
+	preload("res://resources/units/reapers/gravewarden.tres"),
+	preload("res://resources/units/reapers/wraith.tres"),
+	preload("res://resources/units/reapers/pale_shroud.tres"),
+	preload("res://resources/units/reapers/dread_knell.tres"),
+	preload("res://resources/units/reapers/doom_herald.tres"),
+	preload("res://resources/units/reapers/dread_seer.tres"),
+	preload("res://resources/units/reapers/grave_stalker.tres"),
+	preload("res://resources/units/reapers/pale_reaper.tres"),
+	preload("res://resources/units/reapers/shade_stalker.tres"),
+	preload("res://resources/units/reapers/void_wraith.tres"),
+	preload("res://resources/units/reapers/dread_lord.tres"),
+	preload("res://resources/units/reapers/grave_collector.tres"),
+	preload("res://resources/units/reapers/rift_caller.tres"),
+	preload("res://resources/units/reapers/soul_harvester.tres"),
+	preload("res://resources/units/reapers/wail_specter.tres"),
+	preload("res://resources/units/reapers/death_sovereign.tres"),
+	preload("res://resources/units/reapers/grave_pact.tres"),
+	# Satyrs
+	preload("res://resources/units/satyrs/black_satyr.tres"),
+	preload("res://resources/units/satyrs/crimson_satyr.tres"),
+	preload("res://resources/units/satyrs/gold_satyr.tres"),
+	preload("res://resources/units/satyrs/green_satyr.tres"),
+	preload("res://resources/units/satyrs/silver_satyr.tres"),
+	preload("res://resources/units/satyrs/crimson_revenant.tres"),
+	preload("res://resources/units/satyrs/grove_caller.tres"),
+	preload("res://resources/units/satyrs/moon_striker.tres"),
+	preload("res://resources/units/satyrs/plague_sovereign.tres"),
+	preload("res://resources/units/satyrs/surge_herald.tres"),
+	preload("res://resources/units/satyrs/ancient_root.tres"),
+	preload("res://resources/units/satyrs/gilded_balance.tres"),
+	preload("res://resources/units/satyrs/lunar_surge.tres"),
+	preload("res://resources/units/satyrs/pestilence.tres"),
+	preload("res://resources/units/satyrs/twin_pyre.tres"),
+	preload("res://resources/units/satyrs/auric_mirror.tres"),
+	preload("res://resources/units/satyrs/blood_hunger.tres"),
+	preload("res://resources/units/satyrs/dark_reveler.tres"),
+	preload("res://resources/units/satyrs/eternal_grove.tres"),
+	preload("res://resources/units/satyrs/pack_sovereign.tres"),
+	preload("res://resources/units/satyrs/prismatic_reveler.tres"),
 	# Elves
 	preload("res://resources/units/elves/elf_scout.tres"),
+	preload("res://resources/units/elves/duskblade.tres"),
+	preload("res://resources/units/elves/thornguard.tres"),
+	preload("res://resources/units/elves/fernweave.tres"),
+	preload("res://resources/units/elves/moonsong.tres"),
+	preload("res://resources/units/elves/soul_tender.tres"),
+	preload("res://resources/units/elves/spiritbark.tres"),
+	preload("res://resources/units/elves/verdant_archer.tres"),
+	preload("res://resources/units/elves/ashveil.tres"),
+	preload("res://resources/units/elves/dreamhunter.tres"),
+	preload("res://resources/units/elves/pale_warden.tres"),
+	preload("res://resources/units/elves/root_caller.tres"),
+	preload("res://resources/units/elves/thornborn.tres"),
+	preload("res://resources/units/elves/ancient_grove.tres"),
+	preload("res://resources/units/elves/the_dreamer.tres"),
 	# Covenant
 	preload("res://resources/units/covenant/covenant_initiate.tres"),
+	preload("res://resources/units/covenant/seeker.tres"),
+	preload("res://resources/units/covenant/pact_kin.tres"),
+	preload("res://resources/units/covenant/covenantling.tres"),
+	preload("res://resources/units/covenant/fury_kin.tres"),
+	preload("res://resources/units/covenant/weave_kin.tres"),
+	preload("res://resources/units/covenant/oath_binder.tres"),
+	preload("res://resources/units/covenant/bond_warden.tres"),
+	preload("res://resources/units/covenant/martyr_kin.tres"),
+	preload("res://resources/units/covenant/rite_herald.tres"),
+	preload("res://resources/units/covenant/vow_guard.tres"),
+	preload("res://resources/units/covenant/bond_shatter.tres"),
+	preload("res://resources/units/covenant/rite_sage.tres"),
+	preload("res://resources/units/covenant/soul_tether.tres"),
+	preload("res://resources/units/covenant/chain_hunter.tres"),
+	preload("res://resources/units/covenant/grief_kin.tres"),
+	preload("res://resources/units/covenant/rite_spawner.tres"),
 	# Aztecs
 	preload("res://resources/units/aztecs/gilded_martyr.tres"),
 	preload("res://resources/units/aztecs/blood_witness.tres"),
@@ -112,19 +204,19 @@ var _race_filter: int = RaceType.Race.NONE
 @onready var rerolls_label: Label = $CenterVBox/BottomRow/RerollsLabel
 
 
-func activate(tier: int = 1) -> void:
+func activate(tier: int = 1, bonus_rerolls: int = 0) -> void:
 	_current_tier = tier
 	_race_filter = RaceType.Race.NONE
 	visible = true
-	_rerolls_left = GameData.discovery_rerolls
+	_rerolls_left = GameData.discovery_rerolls + bonus_rerolls
 	_deal_cards()
 
 
-func activate_filtered(tier: int, race: int) -> void:
+func activate_filtered(tier: int, race: int, bonus_rerolls: int = 0) -> void:
 	_current_tier = tier
 	_race_filter = race
 	visible = true
-	_rerolls_left = GameData.discovery_rerolls
+	_rerolls_left = GameData.discovery_rerolls + bonus_rerolls
 	_deal_cards()
 
 
