@@ -440,7 +440,7 @@ func _ready() -> void:
 	}))
 
 	# Map screen (overlays combat arena for encounter selection).
-	# z_index=5 keeps it above normal UI but below discovery_screen (z=10),
+	# z_index=5 keeps it above normal UI but below discovery_screen (z=25),
 	# so a triple bonus pick is never hidden behind the map panel.
 	_map_screen = MapScreen.new()
 	_map_screen.z_index = 5
@@ -449,7 +449,8 @@ func _ready() -> void:
 	_map_screen.relic_selected.connect(_on_relic_selected)
 	_map_screen.rest_completed.connect(_on_rest_completed)
 	_map_screen.event_completed.connect(_on_event_completed)
-	discovery_screen.z_index = 10
+	# Above the support slot (z=20) so its backdrop covers the whole arena.
+	discovery_screen.z_index = 25
 
 	# Relics label in resource bar
 	_relics_label = Label.new()

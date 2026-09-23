@@ -5,6 +5,13 @@ var override_mode: int = 0
 
 const _SAVE_PATH := "user://ui_mode.json"
 
+# Design resolution the UI is scaled from. Desktop uses the project setting
+# (1850x900). On mobile that makes a portrait phone render everything at ~20%
+# size, so portrait uses a narrow base and landscape a shorter one instead.
+const _MOBILE_PORTRAIT_BASE := Vector2i(720, 1280)
+const _MOBILE_LANDSCAPE_BASE := Vector2i(1280, 620)
+var _desktop_base := Vector2i.ZERO
+
 func _ready() -> void:
 	if FileAccess.file_exists(_SAVE_PATH):
 		var f := FileAccess.open(_SAVE_PATH, FileAccess.READ)
@@ -12,9 +19,23 @@ func _ready() -> void:
 			var data = JSON.parse_string(f.get_as_text())
 			if data is Dictionary:
 				override_mode = int(data.get("override", 0))
+	var window := get_tree().root
+	_desktop_base = window.content_scale_size
+	window.size_changed.connect(_apply_content_scale)
+	_apply_content_scale()
+
+func _apply_content_scale() -> void:
+	var window := get_tree().root
+	var target := _desktop_base
+	if is_mobile():
+		var win_size := DisplayServer.window_get_size()
+		target = _MOBILE_PORTRAIT_BASE if win_size.y > win_size.x else _MOBILE_LANDSCAPE_BASE
+	if window.content_scale_size != target:
+		window.content_scale_size = target
 
 func set_override(mode: int) -> void:
 	override_mode = mode
+	_apply_content_scale()
 	var f := FileAccess.open(_SAVE_PATH, FileAccess.WRITE)
 	if f != null:
 		f.store_string(JSON.stringify({"override": mode}))
