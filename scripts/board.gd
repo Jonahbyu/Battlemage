@@ -10,6 +10,12 @@ var is_locked: bool = false
 @onready var slots_container: HBoxContainer = $VBox/SlotsContainer
 
 
+func _ready() -> void:
+	# Tighter spacing on phones so a full 7-unit row fits a portrait screen.
+	if Platform.is_mobile():
+		slots_container.add_theme_constant_override("separation", 10)
+
+
 func setup(is_player: bool) -> void:
 	attack_dir = Vector2(0, -25) if is_player else Vector2(0, 25)
 	board_label.text = "PLAYER" if is_player else "ENEMY"
@@ -57,7 +63,7 @@ func get_unit_at_screen_pos(pos: Vector2) -> UnitCard:
 	return null
 
 
-func get_insert_index_for_x(screen_x: float) -> int:
+func get_insert_index_for_x(screen_x: float, _screen_y: float = NAN) -> int:
 	var children := slots_container.get_children()
 	for i in children.size():
 		var c := children[i] as Control

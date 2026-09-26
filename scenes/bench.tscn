@@ -19,9 +19,10 @@ text = "BENCH"
 horizontal_alignment = 1
 mouse_filter = 2
 
-[node name="SlotsContainer" type="HBoxContainer" parent="VBox"]
+[node name="SlotsContainer" type="HFlowContainer" parent="VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 alignment = 1
-theme_override_constants/separation = 24
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 12
 mouse_filter = 2

@@ -45,7 +45,7 @@ size_flags_vertical = 3
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="TopBar" type="HBoxContainer" parent="RootHBox/MainLayout"]
+[node name="TopBar" type="HFlowContainer" parent="RootHBox/MainLayout"]
 layout_mode = 2
 mouse_filter = 2
 
@@ -63,7 +63,7 @@ layout_mode = 2
 text = "Show Log"
 custom_minimum_size = Vector2(0, 44)
 
-[node name="ResourceBar" type="HBoxContainer" parent="RootHBox/MainLayout"]
+[node name="ResourceBar" type="HFlowContainer" parent="RootHBox/MainLayout"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 6

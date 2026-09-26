@@ -6,7 +6,23 @@ const MAX_UNITS = 10
 var units: Array = []
 
 @onready var bench_label: Label = $VBox/BenchLabel
-@onready var slots_container: HBoxContainer = $VBox/SlotsContainer
+@onready var slots_container: HFlowContainer = $VBox/SlotsContainer
+
+# Bench height for one row of cards; a portrait phone can't fit 10 cards in
+# one row, so the bench grows to two rows there.
+var _one_row_height: float = 0.0
+
+
+func _ready() -> void:
+	_one_row_height = custom_minimum_size.y
+	get_viewport().size_changed.connect(_update_rows)
+	_update_rows()
+
+
+func _update_rows() -> void:
+	var two_rows := Platform.is_mobile() and Platform.is_portrait()
+	custom_minimum_size.y = _one_row_height * 2.0 if two_rows else _one_row_height
+	slots_container.add_theme_constant_override("h_separation", 10 if Platform.is_mobile() else 24)
 
 
 func add_unit(card: UnitCard) -> bool:
@@ -32,12 +48,19 @@ func get_unit_at_screen_pos(pos: Vector2) -> UnitCard:
 	return null
 
 
-func get_insert_index_for_x(screen_x: float) -> int:
+func get_insert_index_for_x(screen_x: float, screen_y: float = NAN) -> int:
 	var children := slots_container.get_children()
 	for i in children.size():
 		var c := children[i] as Control
 		if c == null:
 			continue
+		if not is_nan(screen_y):
+			# Cards wrap onto rows: skip rows above the drop point, and stop at
+			# the first card of a row below it.
+			if c.global_position.y + c.size.y < screen_y:
+				continue
+			if c.global_position.y > screen_y:
+				return i
 		if c.global_position.x + c.size.x * 0.5 > screen_x:
 			return i
 	return children.size()

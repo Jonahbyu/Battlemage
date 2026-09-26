@@ -192,6 +192,18 @@ var _discovery_from_combat: bool = false
 var _new_game_discovery: bool = false
 var _board_template: Array = []
 var _drag_card: UnitCard = null
+# Touch: a press+release on a unit without moving counts as a tap and opens
+# the unit action bar (buttons for actions that otherwise need drag or the
+# small top-right hotspot).
+var _press_pos: Vector2 = Vector2.ZERO
+const TAP_SLOP := 16.0
+var _unit_actions_panel: PanelContainer = null
+var _unit_actions_card: UnitCard = null
+var _unit_actions_title: Label = null
+var _unit_actions_info: Label = null
+var _unit_actions_upgrades_btn: Button = null
+var _unit_actions_move_btn: Button = null
+var _unit_actions_sell_btn: Button = null
 var _drag_card_size: Vector2 = Vector2.ZERO
 var _drag_origin_idx: int = -1
 var _drag_origin_visual_idx: int = -1
@@ -440,16 +452,18 @@ func _ready() -> void:
 	}))
 
 	# Map screen (overlays combat arena for encounter selection).
-	# z_index=5 keeps it above normal UI but below discovery_screen (z=10),
-	# so a triple bonus pick is never hidden behind the map panel.
+	# z_index=22 keeps it above normal UI and the support slot (z=20) but below
+	# discovery_screen (z=25), so a triple bonus pick is never hidden behind
+	# the map panel.
 	_map_screen = MapScreen.new()
-	_map_screen.z_index = 5
+	_map_screen.z_index = 22
 	add_child(_map_screen)
 	_map_screen.node_selected.connect(_on_map_node_selected)
 	_map_screen.relic_selected.connect(_on_relic_selected)
 	_map_screen.rest_completed.connect(_on_rest_completed)
 	_map_screen.event_completed.connect(_on_event_completed)
-	discovery_screen.z_index = 10
+	# Above the support slot (z=20) so its backdrop covers the whole arena.
+	discovery_screen.z_index = 25
 
 	# Relics label in resource bar
 	_relics_label = Label.new()
@@ -500,6 +514,10 @@ func _ready() -> void:
 		fight_button.visible = false
 	_update_sell_label()
 	_update_resource_bar()
+	if Platform.is_mobile():
+		_build_unit_actions_panel()
+		get_viewport().size_changed.connect(_apply_touch_sizes)
+		_apply_touch_sizes()
 
 
 # ── Population ────────────────────────────────────────────────────────────────
@@ -3044,8 +3062,15 @@ func _update_support_slot_ui() -> void:
 		return
 	var pb_rect := player_board.get_global_rect()
 	_support_slot_panel.size = Vector2(110, 185)
-	_support_slot_panel.global_position = Vector2(
-		pb_rect.end.x - 118, pb_rect.position.y + 4)
+	if Platform.is_mobile() and Platform.is_portrait():
+		# A full 7-unit row spans the whole width on a portrait phone, so the
+		# slot sits at the left of the Fight row instead of over the board.
+		var center_rect: Rect2 = $RootHBox/MainLayout/CenterRow.get_global_rect()
+		_support_slot_panel.global_position = Vector2(
+			pb_rect.position.x + 4, center_rect.get_center().y - 185.0 * 0.5)
+	else:
+		_support_slot_panel.global_position = Vector2(
+			pb_rect.end.x - 118, pb_rect.position.y + 4)
 	if _support_buy_button != null:
 		_support_buy_button.visible = not _support_slot_unlocked
 		_support_buy_button.disabled = _gold < 50
@@ -3911,8 +3936,15 @@ func _input(event: InputEvent) -> void:
 	if player_board.is_locked:
 		return
 
+	if _unit_actions_panel != null and _unit_actions_panel.visible \
+			and event is InputEventMouseButton \
+			and _unit_actions_panel.get_global_rect().has_point(event.global_position):
+		return
+
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
+			_press_pos = event.global_position
+			_hide_unit_actions()
 			_try_start_drag(event.global_position)
 		else:
 			_end_drag(event.global_position)
@@ -3934,48 +3966,11 @@ func _try_start_drag(pos: Vector2) -> void:
 		_close_weapon_menu()
 		return
 
-	# Top-right 26×34 area = weapon button for Humans, mage button for Mages
+	# Top-right 26×34 area opens the unit's race menu (weapons, spells, shops)
 	var top_right := Rect2(card.global_position + Vector2(card.size.x - 26, 0), Vector2(26, 34))
-	if card.data.race == RaceType.Race.HUMAN:
-		if top_right.has_point(pos):
-			_open_weapon_menu(card)
-			get_viewport().set_input_as_handled()
-			return
-	if card.data.race == RaceType.Race.MAGE:
-		if top_right.has_point(pos):
-			_open_mage_shop(card)
-			return
-	if card.data.race == RaceType.Race.GOBLIN:
-		if top_right.has_point(pos):
-			if card.data.goblin_effect == GoblinEffect.Effect.WITCH_DOCTOR_BLESS:
-				_open_witch_doctor_picker(card)
-			else:
-				_open_goblin_shop()
-			return
-	if card.data.race == RaceType.Race.ELF:
-		if top_right.has_point(pos):
-			_open_elf_shop()
-			return
-	if card.data.race == RaceType.Race.COVENANT:
-		if top_right.has_point(pos):
-			_open_covenant_shop()
-			return
-	if card.data.race == RaceType.Race.AZTEC:
-		if top_right.has_point(pos):
-			_open_aztec_shop()
-			return
-	if card.data.race == RaceType.Race.CONSTRUCT:
-		if top_right.has_point(pos):
-			_open_construct_shop()
-			return
-	if card.data.race == RaceType.Race.REAPER:
-		if top_right.has_point(pos):
-			_open_reaper_shop()
-			return
-	if card.data.race == RaceType.Race.MYCONID:
-		if top_right.has_point(pos):
-			_open_myconid_shop()
-			return
+	if top_right.has_point(pos) and _open_unit_race_menu(card):
+		get_viewport().set_input_as_handled()
+		return
 
 	_drag_from_support = (origin == null)
 	if _drag_from_support:
@@ -3998,10 +3993,40 @@ func _try_start_drag(pos: Vector2) -> void:
 	card.set_lifted(true)
 
 
+# Opens the race-specific menu for a unit. Returns false if its race has none.
+func _open_unit_race_menu(card: UnitCard) -> bool:
+	match card.data.race:
+		RaceType.Race.HUMAN:
+			_open_weapon_menu(card)
+		RaceType.Race.MAGE:
+			_open_mage_shop(card)
+		RaceType.Race.GOBLIN:
+			if card.data.goblin_effect == GoblinEffect.Effect.WITCH_DOCTOR_BLESS:
+				_open_witch_doctor_picker(card)
+			else:
+				_open_goblin_shop()
+		RaceType.Race.ELF:
+			_open_elf_shop()
+		RaceType.Race.COVENANT:
+			_open_covenant_shop()
+		RaceType.Race.AZTEC:
+			_open_aztec_shop()
+		RaceType.Race.CONSTRUCT:
+			_open_construct_shop()
+		RaceType.Race.REAPER:
+			_open_reaper_shop()
+		RaceType.Race.MYCONID:
+			_open_myconid_shop()
+		_:
+			return false
+	return true
+
+
 func _end_drag(pos: Vector2) -> void:
 	if _drag_card == null:
 		return
 
+	var is_tap := Platform.is_mobile() and pos.distance_to(_press_pos) <= TAP_SLOP
 	remove_child(_drag_card)
 	_drag_card.z_index = 0
 	_drag_card.set_lifted(false)
@@ -4080,7 +4105,7 @@ func _end_drag(pos: Vector2) -> void:
 		unit_idx = _drag_origin_idx
 		visual_idx = _drag_origin_visual_idx
 	else:
-		visual_idx = target.get_insert_index_for_x(pos.x)
+		visual_idx = target.get_insert_index_for_x(pos.x, pos.y)
 		unit_idx = target.get_unit_insert_idx_for_visual_idx(visual_idx)
 
 	target.units.insert(unit_idx, _drag_card)
@@ -4102,6 +4127,8 @@ func _end_drag(pos: Vector2) -> void:
 
 	_check_for_triples()
 	_update_support_slot_ui()
+	if is_tap and is_instance_valid(placed_card) and not placed_card.is_queued_for_deletion():
+		_show_unit_actions(placed_card)
 
 
 # ── Keyboard shortcuts ────────────────────────────────────────────────────────
@@ -4116,6 +4143,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_fight_pressed() -> void:
 	print("=== FIGHT pressed ===")
+	_hide_unit_actions()
 	if is_instance_valid(_go_to_map_btn):
 		_go_to_map_btn.visible = false
 	_board_template = []
@@ -4169,3 +4197,184 @@ func _on_fight_pressed() -> void:
 	combat_manager.enemy_myconid_shop_data = _enemy_myconid_shop_data
 	combat_manager.enemy_satyr_shop_data = _enemy_satyr_shop_data
 	combat_manager.start_combat()
+
+
+# ── Touch controls (mobile) ───────────────────────────────────────────────────
+
+const TOUCH_BUTTON_HEIGHT := 88.0
+const TOUCH_FONT_SIZE := 28
+
+
+# Portrait phones render at ~43% scale, so top-bar buttons and labels are
+# enlarged to thumb size there. Original sizes are kept in meta so rotating
+# back to landscape restores them.
+func _apply_touch_sizes() -> void:
+	var big := Platform.is_mobile() and Platform.is_portrait()
+	var controls: Array = []
+	for bar_path in ["RootHBox/MainLayout/TopBar", "RootHBox/MainLayout/ResourceBar",
+			"RootHBox/MainLayout/CenterRow"]:
+		var bar := get_node_or_null(bar_path)
+		if bar != null:
+			controls.append_array(bar.get_children())
+	controls.append(sell_label)
+	for c in controls:
+		if not (c is Button or c is Label):
+			continue
+		if not c.has_meta("orig_min_size"):
+			c.set_meta("orig_min_size", c.custom_minimum_size)
+			c.set_meta("orig_font_size", c.get_theme_font_size("font_size"))
+		var orig_min: Vector2 = c.get_meta("orig_min_size")
+		var orig_font: int = c.get_meta("orig_font_size")
+		if big:
+			var font := TOUCH_FONT_SIZE
+			if c == result_banner:
+				font = 48
+			elif c is Button and c.get_parent().name == "CenterRow":
+				font = 36
+			c.add_theme_font_size_override("font_size", maxi(orig_font, font))
+			if c is Button:
+				c.custom_minimum_size = Vector2(maxf(orig_min.x, 120.0), maxf(orig_min.y, TOUCH_BUTTON_HEIGHT))
+		else:
+			c.add_theme_font_size_override("font_size", orig_font)
+			c.custom_minimum_size = orig_min
+	sell_zone.custom_minimum_size.y = TOUCH_BUTTON_HEIGHT if big else 60.0
+	_update_support_slot_ui()
+	# Side padding so edge buttons aren't clipped by rounded phone screens.
+	var root_box: Control = $RootHBox
+	root_box.offset_left = 16.0 if big else 0.0
+	root_box.offset_right = -16.0 if big else 0.0
+
+
+
+func _build_unit_actions_panel() -> void:
+	_unit_actions_panel = PanelContainer.new()
+	_unit_actions_panel.z_index = 30
+	_unit_actions_panel.visible = false
+	_unit_actions_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.11, 0.16, 0.97)
+	style.border_color = Color(0.45, 0.50, 0.70, 1.0)
+	style.border_width_top = 3
+	style.set_content_margin_all(16)
+	_unit_actions_panel.add_theme_stylebox_override("panel", style)
+	add_child(_unit_actions_panel)
+	_unit_actions_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_unit_actions_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	_unit_actions_panel.add_child(vbox)
+
+	_unit_actions_title = Label.new()
+	_unit_actions_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_unit_actions_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
+	vbox.add_child(_unit_actions_title)
+
+	_unit_actions_info = Label.new()
+	_unit_actions_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_unit_actions_info.visible = false
+	vbox.add_child(_unit_actions_info)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	vbox.add_child(row)
+
+	var info_btn := _make_action_button("Info", row)
+	info_btn.pressed.connect(func(): _unit_actions_info.visible = not _unit_actions_info.visible)
+	_unit_actions_upgrades_btn = _make_action_button("Upgrades", row)
+	_unit_actions_upgrades_btn.pressed.connect(_on_unit_action_upgrades)
+	_unit_actions_move_btn = _make_action_button("To Board", row)
+	_unit_actions_move_btn.pressed.connect(_on_unit_action_move)
+	_unit_actions_sell_btn = _make_action_button("Sell", row)
+	_unit_actions_sell_btn.pressed.connect(_on_unit_action_sell)
+	var close_btn := _make_action_button("Close", row)
+	close_btn.pressed.connect(_hide_unit_actions)
+
+
+func _make_action_button(text: String, parent: Control) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(b)
+	return b
+
+
+func _show_unit_actions(card: UnitCard) -> void:
+	if _unit_actions_panel == null or card.data == null:
+		return
+	var on_board := card in player_board.units
+	var on_bench := card in player_bench.units
+	if not on_board and not on_bench:
+		return
+	_unit_actions_card = card
+	_unit_actions_title.text = "%s  (Tier %d)  —  ATK %d  HP %d" % [
+		card.data.display_name, card.data.tier,
+		card.get_display_attack(), card.current_health]
+	_unit_actions_info.text = card._build_preview_body()
+	_unit_actions_info.visible = false
+	_unit_actions_upgrades_btn.visible = card.data.race in [
+		RaceType.Race.HUMAN, RaceType.Race.MAGE, RaceType.Race.GOBLIN,
+		RaceType.Race.ELF, RaceType.Race.COVENANT, RaceType.Race.AZTEC,
+		RaceType.Race.CONSTRUCT, RaceType.Race.REAPER, RaceType.Race.MYCONID]
+	# Units only move bench -> board (dragging a board unit to the bench isn't
+	# allowed either).
+	_unit_actions_move_btn.visible = on_bench
+	_unit_actions_move_btn.disabled = player_board.units.size() >= 7
+	_unit_actions_title.add_theme_font_size_override("font_size", TOUCH_FONT_SIZE + 2)
+	_unit_actions_info.add_theme_font_size_override("font_size", TOUCH_FONT_SIZE - 4)
+	for b in _unit_actions_move_btn.get_parent().get_children():
+		b.add_theme_font_size_override("font_size", TOUCH_FONT_SIZE)
+		b.custom_minimum_size.y = TOUCH_BUTTON_HEIGHT
+	card.show_targeted(true)
+	_unit_actions_panel.visible = true
+
+
+func _hide_unit_actions() -> void:
+	if _unit_actions_panel == null:
+		return
+	_unit_actions_panel.visible = false
+	if _unit_actions_card != null and is_instance_valid(_unit_actions_card):
+		_unit_actions_card.show_targeted(false)
+	_unit_actions_card = null
+
+
+func _on_unit_action_upgrades() -> void:
+	var card := _unit_actions_card
+	_hide_unit_actions()
+	if card != null and is_instance_valid(card) and not player_board.is_locked:
+		_open_unit_race_menu(card)
+
+
+func _on_unit_action_move() -> void:
+	var card := _unit_actions_card
+	_hide_unit_actions()
+	if card == null or not is_instance_valid(card) or player_board.is_locked:
+		return
+	if not card in player_bench.units or player_board.units.size() >= 7:
+		return
+	player_bench.units.erase(card)
+	card.get_parent().remove_child(card)
+	player_board.units.append(card)
+	player_board.slots_container.add_child(card)
+	_save_player_order()
+	_save_bench()
+	_fire_surge(card)
+	_check_for_triples()
+	_update_support_slot_ui()
+
+
+func _on_unit_action_sell() -> void:
+	var card := _unit_actions_card
+	_hide_unit_actions()
+	if card == null or not is_instance_valid(card) or player_board.is_locked:
+		return
+	if card in player_board.units:
+		player_board.units.erase(card)
+	elif card in player_bench.units:
+		player_bench.units.erase(card)
+	else:
+		return
+	card.get_parent().remove_child(card)
+	card.queue_free()
+	_handle_sell(card)
+	_update_support_slot_ui()

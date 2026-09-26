@@ -199,9 +199,20 @@ var _rerolls_left: int = 3
 var _current_tier: int = 1
 var _race_filter: int = RaceType.Race.NONE
 
-@onready var cards_container: HBoxContainer = $CenterVBox/CardsContainer
-@onready var reroll_button: Button = $CenterVBox/BottomRow/RerollButton
-@onready var rerolls_label: Label = $CenterVBox/BottomRow/RerollsLabel
+# Press position of the current tap; picks only fire on a release near it so
+# dragging to scroll the card list on touch screens doesn't choose a card.
+var _press_pos: Variant = null
+const TAP_SLOP := 16.0
+
+@onready var cards_container: HFlowContainer = $Margin/CenterVBox/Scroll/CenterBox/CardsContainer
+@onready var scroll: ScrollContainer = $Margin/CenterVBox/Scroll
+@onready var reroll_button: Button = $Margin/CenterVBox/BottomRow/RerollButton
+@onready var rerolls_label: Label = $Margin/CenterVBox/BottomRow/RerollsLabel
+
+
+func _ready() -> void:
+	# Fill the parent even when instanced into a scene that doesn't set layout.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 
 func activate(tier: int = 1, bonus_rerolls: int = 0) -> void:
@@ -224,6 +235,8 @@ func _deal_cards() -> void:
 	for child in cards_container.get_children():
 		child.queue_free()
 
+	scroll.scroll_vertical = 0
+	_press_pos = null
 	var pool: Array = ALL_UNITS.filter(func(u): return u.tier <= _current_tier)
 	if _race_filter != RaceType.Race.NONE:
 		pool = pool.filter(func(u): return u.race == _race_filter)
@@ -253,13 +266,22 @@ func _cards_for_tier(tier: int) -> int:
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed):
+	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if event.pressed:
+		_press_pos = event.global_position
+		return
+	if _press_pos == null or event.global_position.distance_to(_press_pos) > TAP_SLOP:
+		_press_pos = null
+		return
+	_press_pos = null
+	if not scroll.get_global_rect().has_point(event.global_position):
 		return
 	for child in cards_container.get_children():
 		var card := child as UnitCard
 		if card == null:
 			continue
-		if Rect2(card.global_position, card.size).has_point(event.global_position):
+		if card.get_global_rect().has_point(event.global_position):
 			visible = false
 			unit_chosen.emit(card.data)
 			return
