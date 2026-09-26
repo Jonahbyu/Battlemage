@@ -256,10 +256,10 @@ mouse_filter = 2
 [node name="WeaponIndicator" type="Label" parent="."]
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -24
+offset_left = -34
 offset_right = -2
-offset_top = 2
-offset_bottom = 34
+offset_top = 31
+offset_bottom = 47
 mouse_filter = 2
 text = "⚙"
 theme_override_font_sizes/font_size = 11

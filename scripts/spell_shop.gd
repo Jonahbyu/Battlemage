@@ -26,6 +26,7 @@ func _ready() -> void:
 	z_index = 60
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_build_ui()
+	Platform.adapt_overlay(self)
 	visible = false
 
 

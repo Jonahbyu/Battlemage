@@ -19,6 +19,7 @@ func _ready() -> void:
 	z_index = 80
 	visible = false
 	_build_ui()
+	Platform.adapt_overlay(self)
 
 
 func open(data: ConstructShopData, gold: int) -> void:
@@ -97,6 +98,7 @@ func _build_ui() -> void:
 	outer.add_child(HSeparator.new())
 
 	var body := HBoxContainer.new()
+	body.set_meta("mobile_stack", true)
 	body.add_theme_constant_override("separation", 20)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(body)

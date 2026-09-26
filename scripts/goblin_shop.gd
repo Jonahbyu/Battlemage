@@ -31,6 +31,7 @@ func _ready() -> void:
 	z_index = 80
 	visible = false
 	_build_ui()
+	Platform.adapt_overlay(self)
 
 
 func open(data: GoblinShopData, gold: int) -> void:
@@ -111,6 +112,7 @@ func _build_ui() -> void:
 
 	# Two-column body
 	var body := HBoxContainer.new()
+	body.set_meta("mobile_stack", true)
 	body.add_theme_constant_override("separation", 20)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(body)

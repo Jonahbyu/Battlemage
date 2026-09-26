@@ -211,8 +211,24 @@ const TAP_SLOP := 16.0
 
 
 func _ready() -> void:
-	# Fill the parent even when instanced into a scene that doesn't set layout.
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_fit_to_screen()
+	get_viewport().size_changed.connect(_fit_to_screen)
+
+
+# Fill the parent even when instanced into a scene that doesn't set layout.
+# On a portrait phone the cards would be drawn at ~40% size, so the whole
+# picker is zoomed 2x and laid out in half the space instead.
+func _fit_to_screen() -> void:
+	var zoom := 2.0 if Platform.is_mobile() and Platform.is_portrait() else 1.0
+	if zoom == 1.0:
+		scale = Vector2.ONE
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		return
+	var parent_size: Vector2 = get_parent_area_size()
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	size = parent_size / zoom
+	scale = Vector2(zoom, zoom)
 
 
 func activate(tier: int = 1, bonus_rerolls: int = 0) -> void:
