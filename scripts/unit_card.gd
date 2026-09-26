@@ -76,16 +76,33 @@ func _ready() -> void:
 	_shop_button.anchor_top = 0.0
 	_shop_button.anchor_right = 1.0
 	_shop_button.anchor_bottom = 0.0
-	_shop_button.offset_left = -28
-	_shop_button.offset_right = -2
-	_shop_button.offset_top = 2
-	_shop_button.offset_bottom = 39
-	_shop_button.text = "🛒"
-	_shop_button.flat = true
+	_shop_button.offset_left = -29
+	_shop_button.offset_right = -3
+	_shop_button.offset_top = 3
+	_shop_button.offset_bottom = 29
+	_shop_button.text = "⚙"
+	_shop_button.add_theme_font_size_override("font_size", 20)
+	_shop_button.add_theme_color_override("font_color", Color(1, 0.9, 0.6))
+	_shop_button.add_theme_color_override("font_hover_color", Color(1, 1, 1))
+	var badge := StyleBoxFlat.new()
+	badge.bg_color = Color(0.08, 0.08, 0.12, 0.8)
+	badge.border_color = Color(1, 0.85, 0.5, 0.7)
+	badge.set_border_width_all(1)
+	badge.set_corner_radius_all(13)
+	badge.content_margin_left = 0
+	badge.content_margin_right = 0
+	badge.content_margin_top = 0
+	badge.content_margin_bottom = 0
+	var badge_hover := badge.duplicate() as StyleBoxFlat
+	badge_hover.bg_color = Color(0.25, 0.2, 0.1, 0.9)
+	_shop_button.add_theme_stylebox_override("normal", badge)
+	_shop_button.add_theme_stylebox_override("hover", badge_hover)
+	_shop_button.add_theme_stylebox_override("pressed", badge_hover)
 	_shop_button.focus_mode = Control.FOCUS_NONE
 	_shop_button.visible = false
 	_shop_button.pressed.connect(func(): shop_pressed.emit(self))
 	add_child(_shop_button)
+	_update_menu_badge()
 
 	_charge_label = Label.new()
 	_charge_label.anchor_left = 0.0
@@ -127,15 +144,41 @@ func initialize(unit_data: UnitData) -> void:
 		equipped_weapon = null
 	backpack_weapon = null
 	equipped_spell = _get_default_spell()
-	if _shop_button != null:
-		_shop_button.visible = unit_data.race in [
-			RaceType.Race.HUMAN, RaceType.Race.MAGE, RaceType.Race.ELF,
-			RaceType.Race.COVENANT, RaceType.Race.AZTEC,
-			RaceType.Race.CONSTRUCT, RaceType.Race.REAPER, RaceType.Race.MYCONID,
-		]
+	_update_menu_badge()
 	if art_drawer != null:
 		art_drawer.setup(unit_data)
 	refresh_display()
+
+
+const _MENU_RACES := [
+	RaceType.Race.HUMAN, RaceType.Race.MAGE, RaceType.Race.ELF,
+	RaceType.Race.COVENANT, RaceType.Race.AZTEC,
+	RaceType.Race.CONSTRUCT, RaceType.Race.REAPER, RaceType.Race.MYCONID,
+	RaceType.Race.GOBLIN, RaceType.Race.SATYR,
+]
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ENTER_TREE:
+		_update_menu_badge()
+
+
+# The ⚙ menu badge only means something on the player's own units, so hide it
+# on enemy boards and on the discovery picker.
+func _update_menu_badge() -> void:
+	if _shop_button == null or data == null:
+		return
+	var is_players := false
+	var node := get_parent()
+	while node != null:
+		if node is Board:
+			is_players = (node as Board).is_draggable
+			break
+		if node is Bench:
+			is_players = true
+			break
+		node = node.get_parent()
+	_shop_button.visible = is_players and data.race in _MENU_RACES
 
 
 func _get_default_spell() -> SpellInstance:
@@ -195,42 +238,29 @@ func refresh_display() -> void:
 	var has_weapon := is_human and equipped_weapon != null
 	var is_mage := data.race == RaceType.Race.MAGE
 	var has_spell := is_mage and equipped_spell != null
-	var is_goblin := data.race == RaceType.Race.GOBLIN
-	var is_elf := data.race == RaceType.Race.ELF
-	var is_covenant := data.race == RaceType.Race.COVENANT
-	weapon_indicator.visible = is_human or is_mage or is_goblin or is_elf or is_covenant or data.race == RaceType.Race.AZTEC
+	# The ⚙ badge (_shop_button) marks races with a menu; the indicator just
+	# adds the equipped weapon's short name under it.
+	weapon_indicator.visible = false
 	weapon_label.visible = has_weapon or has_spell
 	if has_weapon:
 		var w := equipped_weapon
 		var gun := w.get_total_damage()
+		weapon_indicator.visible = true
 		match w.weapon_type:
 			WeaponData.WeaponType.PISTOL:
-				weapon_indicator.text = "⚙\nP"
+				weapon_indicator.text = "P"
 				weapon_label.text = "+%d dmg" % gun
 			WeaponData.WeaponType.SHOTGUN:
-				weapon_indicator.text = "⚙\nSG"
+				weapon_indicator.text = "SG"
 				weapon_label.text = "+%d(+%d spl)" % [gun, w.get_splash_damage()]
 			WeaponData.WeaponType.SNIPER:
-				weapon_indicator.text = "⚙\nSNP"
+				weapon_indicator.text = "SNP"
 				weapon_label.text = "+%d dmg" % gun
 			WeaponData.WeaponType.MACHINE_GUN:
-				weapon_indicator.text = "⚙\nMG"
+				weapon_indicator.text = "MG"
 				weapon_label.text = "+%d/shot x%d" % [gun, w.get_total_shots()]
 	elif has_spell:
-		weapon_indicator.text = "⚙"
 		weapon_label.text = equipped_spell.spell_data.display_name
-	elif is_mage:
-		weapon_indicator.text = "⚙"
-	elif is_goblin:
-		weapon_indicator.text = "⚙"
-	elif is_elf:
-		weapon_indicator.text = "⚙"
-	elif is_covenant:
-		weapon_indicator.text = "⚙"
-	elif data.race == RaceType.Race.AZTEC:
-		weapon_indicator.text = "⚙"
-	elif is_human:
-		weapon_indicator.text = "⚙"
 
 	if _charge_label != null:
 		if data.race == RaceType.Race.CONSTRUCT and construct_charge > 0:
@@ -241,7 +271,7 @@ func refresh_display() -> void:
 
 	if _spore_label != null:
 		if data.race == RaceType.Race.MYCONID and myconid_spores > 0:
-			_spore_label.text = "🍄%d" % myconid_spores
+			_spore_label.text = "✿%d" % myconid_spores
 			_spore_label.visible = true
 		else:
 			_spore_label.visible = false

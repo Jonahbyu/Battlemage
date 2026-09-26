@@ -220,6 +220,7 @@ var _event_panel: Control
 # Map panel refs
 var _scroll: ScrollContainer
 var _map_grid: VBoxContainer
+var _current_row_panel: Control = null
 var _info_label: Label
 var _confirm_btn: Button
 var _subtitle_label: Label
@@ -239,6 +240,7 @@ func _ready() -> void:
 	_build_relic_panel()
 	_build_rest_panel()
 	_build_event_panel()
+	Platform.adapt_overlay(self)
 	visible = false
 
 
@@ -315,7 +317,8 @@ func _show_panel(name: String) -> void:
 func _build_background() -> void:
 	var bg := ColorRect.new()
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.05, 0.05, 0.08, 0.96)
+	# Opaque on phones: the battle's top bar otherwise shows through the title.
+	bg.color = Color(0.05, 0.05, 0.08, 1.0 if Platform.is_mobile() else 0.96)
 	add_child(bg)
 
 
@@ -443,6 +446,7 @@ func _rebuild_map_grid() -> void:
 	for child in _map_grid.get_children():
 		child.queue_free()
 	_current_row_buttons.clear()
+	_current_row_panel = null
 
 	var nodes: Array = _map_data.get("nodes", [])
 	var max_row := 0
@@ -464,6 +468,8 @@ func _rebuild_map_grid() -> void:
 		var row_panel := PanelContainer.new()
 		row_panel.add_theme_stylebox_override("panel", _make_row_style(is_current, is_past, is_boss))
 		_map_grid.add_child(row_panel)
+		if is_current:
+			_current_row_panel = row_panel
 
 		var row_vbox := VBoxContainer.new()
 		row_vbox.add_theme_constant_override("separation", 5)
@@ -613,20 +619,15 @@ func _update_info(text: String) -> void:
 
 
 func _scroll_to_current() -> void:
-	if not is_instance_valid(_scroll) or not is_instance_valid(_map_grid):
+	# Wait for the grid to lay out (text on phones is resized a frame late)
+	# so the real row position is known, then center the current row.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(_scroll) or not is_instance_valid(_current_row_panel):
 		return
-	# Find the approximate Y of the current row in the grid
-	# The grid displays rows top-to-bottom (boss first, row 0 last)
-	# current row is at index: (max_row - current_row) in display order
-	var nodes: Array = _map_data.get("nodes", [])
-	var max_row := 0
-	for n: Dictionary in nodes:
-		if n.row > max_row:
-			max_row = n.row
-	var display_index := max_row - _current_row  # 0 = top (boss)
-	# Each row panel ≈ 100px (header + buttons + padding + separation)
-	var approx_y := display_index * 100
-	_scroll.scroll_vertical = maxi(0, approx_y - 60)
+	var target := _current_row_panel.position.y \
+		- (_scroll.size.y - _current_row_panel.size.y) / 2.0
+	_scroll.scroll_vertical = maxi(0, int(target))
 
 
 # ── Relic panel ───────────────────────────────────────────────────────────────
@@ -668,6 +669,7 @@ func _build_relic_ui(available_relics: Array) -> void:
 		children = _relic_panel.get_children()
 
 	var hbox := HBoxContainer.new()
+	hbox.set_meta("mobile_stack", true)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	hbox.add_theme_constant_override("separation", 22)
 	_relic_panel.add_child(hbox)

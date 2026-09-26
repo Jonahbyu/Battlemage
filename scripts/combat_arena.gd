@@ -1529,6 +1529,7 @@ func _build_all_shops_panel() -> void:
 		vbox.add_child(btn)
 
 	_all_shops_panel.custom_minimum_size = Vector2(246, 0)
+	Platform.adapt_overlay(_all_shops_panel)
 
 
 func _close_all_shops_panel() -> void:
@@ -4017,6 +4018,8 @@ func _open_unit_race_menu(card: UnitCard) -> bool:
 			_open_reaper_shop()
 		RaceType.Race.MYCONID:
 			_open_myconid_shop()
+		RaceType.Race.SATYR:
+			_open_satyr_shop()
 		_:
 			return false
 	return true
