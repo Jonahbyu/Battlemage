@@ -68,6 +68,7 @@ var _spore_label: Label = null
 
 
 func _ready() -> void:
+	_apply_facelift()
 	if data != null:
 		art_drawer.setup(data)
 		refresh_display()
@@ -224,8 +225,19 @@ func refresh_display() -> void:
 		return
 	var bg_style := StyleBoxFlat.new()
 	bg_style.bg_color = _get_race_bg_color()
-	bg_style.set_corner_radius_all(12)
+	bg_style.set_corner_radius_all(8)
+	bg_style.shadow_color = Color(0, 0, 0, 0.6)
+	bg_style.shadow_size = 8
+	bg_style.shadow_offset = Vector2(0, 4)
 	card_background.add_theme_stylebox_override("panel", bg_style)
+	if _frame != null:
+		var fr := StyleBoxFlat.new()
+		fr.draw_center = false
+		fr.set_corner_radius_all(8)
+		fr.set_border_width_all(2)
+		fr.border_color = _tier_color(data.tier)
+		fr.anti_aliasing = true
+		_frame.add_theme_stylebox_override("panel", fr)
 
 	name_label.text = data.display_name + "  " + "★".repeat(data.tier)
 	attack_label.text = str(current_attack)
@@ -715,15 +727,11 @@ func _on_mouse_exited() -> void:
 func _show_preview() -> void:
 	preview_name_label.text = data.display_name + "  " + "★".repeat(data.tier)
 	preview_body_label.text = _build_preview_body()
-	var preview_style := StyleBoxFlat.new()
-	preview_style.bg_color = _get_race_bg_color().darkened(0.12)
-	preview_style.set_corner_radius_all(10)
-	preview_style.border_width_left = 2
-	preview_style.border_width_top = 2
-	preview_style.border_width_right = 2
-	preview_style.border_width_bottom = 2
-	preview_style.border_color = _get_race_bg_color().lightened(0.40)
+	var preview_style := UITheme.panel_box(
+		_get_race_bg_color().darkened(0.45).lerp(UITheme.PANEL_HI, 0.5), _tier_color(data.tier), 6, 18)
+	preview_style.bg_color.a = 0.97
 	card_preview.add_theme_stylebox_override("panel", preview_style)
+	preview_name_label.add_theme_color_override("font_color", _tier_color(data.tier).lightened(0.25))
 	var pw := 200.0
 	var ph := 280.0
 	var px := (size.x - pw) * 0.5
@@ -892,3 +900,105 @@ func flash_surge_buff() -> void:
 	t2.tween_property(highlight_overlay, "color", Color(1, 0.85, 0, 0), 0.45)
 	t2.tween_property(self, "scale", Vector2.ONE, 0.3)
 	await t2.finished
+
+
+# ── Facelift: gilded frame, heraldic stat badges ─────────────────────────────
+
+var _frame: Panel = null
+
+static func _tier_color(tier: int) -> Color:
+	match tier:
+		1: return Color(0.72, 0.50, 0.30)   # bronze
+		2: return Color(0.78, 0.80, 0.86)   # silver
+		3: return Color(0.95, 0.78, 0.40)   # gold
+		4: return Color(0.42, 0.88, 0.70)   # verdigris
+		5: return Color(0.55, 0.75, 1.00)   # sapphire
+		6: return Color(0.86, 0.55, 1.00)   # amethyst
+	return Color(1.0, 0.55, 0.30)           # ember (7+)
+
+
+func _stat_box(bg: Color, rim: Color) -> StyleBoxFlat:
+	var b := StyleBoxFlat.new()
+	b.bg_color = bg
+	b.border_color = rim
+	b.set_border_width_all(2)
+	b.set_corner_radius_all(14)
+	b.corner_detail = 6
+	b.shadow_color = Color(0, 0, 0, 0.55)
+	b.shadow_size = 4
+	b.shadow_offset = Vector2(0, 2)
+	b.anti_aliasing = true
+	return b
+
+
+func _apply_facelift() -> void:
+	# Frame drawn over the art, under the badges.
+	_frame = Panel.new()
+	_frame.name = "GildedFrame"
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame.anchor_right = 1.0
+	_frame.anchor_bottom = 1.0
+	_frame.offset_bottom = -12.0
+	_frame.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	add_child(_frame)
+	move_child(_frame, art_drawer.get_index() + 1)
+
+	var stat_font: Font = UITheme.font_display_bold
+	$AttackBadge.add_theme_stylebox_override("panel",
+		_stat_box(Color(0.86, 0.60, 0.16), Color(0.32, 0.18, 0.04)))
+	$HealthBadge.add_theme_stylebox_override("panel",
+		_stat_box(Color(0.70, 0.10, 0.12), Color(0.30, 0.03, 0.04)))
+	for lbl: Label in [attack_label, health_label]:
+		lbl.add_theme_font_override("font", stat_font)
+		lbl.add_theme_font_size_override("font_size", 18)
+		lbl.add_theme_color_override("font_outline_color", Color(0.10, 0.04, 0.02, 1.0))
+		lbl.add_theme_constant_override("outline_size", 5)
+
+	# Buy button: emerald seal with a gilt rim
+	var bn := _stat_box(Color(0.10, 0.55, 0.30), Color(0.95, 0.80, 0.45))
+	bn.set_corner_radius_all(20)
+	var bh := bn.duplicate() as StyleBoxFlat
+	bh.bg_color = Color(0.16, 0.72, 0.40)
+	bh.shadow_color = Color(0.4, 1.0, 0.6, 0.35)
+	bh.shadow_size = 8
+	var bp := bn.duplicate() as StyleBoxFlat
+	bp.bg_color = Color(0.06, 0.40, 0.20)
+	buy_button.add_theme_stylebox_override("normal", bn)
+	buy_button.add_theme_stylebox_override("hover", bh)
+	buy_button.add_theme_stylebox_override("pressed", bp)
+	buy_button.add_theme_font_override("font", UITheme.font_bold)
+	buy_button.add_theme_font_size_override("font_size", 26)
+
+	# Selection: arcane glow instead of a white outline
+	var sel := StyleBoxFlat.new()
+	sel.draw_center = false
+	sel.set_border_width_all(3)
+	sel.set_corner_radius_all(9)
+	sel.border_color = UITheme.ARCANE
+	sel.shadow_color = Color(UITheme.ARCANE, 0.45)
+	sel.shadow_size = 10
+	select_border.add_theme_stylebox_override("panel", sel)
+
+	# Taunt: heavy iron rim
+	var ta := StyleBoxFlat.new()
+	ta.draw_center = false
+	ta.set_border_width_all(4)
+	ta.set_corner_radius_all(9)
+	ta.border_color = Color(0.55, 0.58, 0.64)
+	ta.shadow_color = Color(0, 0, 0, 0.5)
+	ta.shadow_size = 4
+	taunt_border.add_theme_stylebox_override("panel", ta)
+
+	# Hover name plate
+	var np := StyleBoxFlat.new()
+	np.bg_color = Color(0.04, 0.03, 0.07, 0.82)
+	np.border_color = Color(UITheme.GOLD_DIM, 0.8)
+	np.border_width_top = 1
+	np.border_width_bottom = 1
+	hover_name_panel.add_theme_stylebox_override("panel", np)
+	name_label.add_theme_font_override("font", UITheme.font_bold)
+	name_label.add_theme_color_override("font_color", UITheme.GOLD_HI)
+	preview_name_label.add_theme_font_override("font", UITheme.font_display_bold)
+	preview_name_label.add_theme_font_size_override("font_size", 16)
+	preview_body_label.add_theme_font_size_override("font_size", 13)
+	preview_body_label.add_theme_color_override("font_color", UITheme.TEXT)

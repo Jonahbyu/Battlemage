@@ -11,6 +11,7 @@ var is_locked: bool = false
 
 
 func _ready() -> void:
+	_skin()
 	# Tighter spacing on phones so a full 7-unit row fits a portrait screen.
 	if Platform.is_mobile():
 		slots_container.add_theme_constant_override("separation", 10)
@@ -81,3 +82,21 @@ func get_unit_insert_idx_for_visual_idx(visual_idx: int) -> int:
 		if children[i] is UnitCard:
 			count += 1
 	return count
+
+
+func _skin() -> void:
+	UITheme.style_eyebrow(board_label, Color(UITheme.GOLD, 0.85))
+	board_label.add_theme_font_size_override("font_size", 15)
+	var mat := Panel.new()
+	mat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mat.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.0, 0.0, 0.0, 0.22)
+	st.border_color = Color(UITheme.GOLD_DIM, 0.28)
+	st.border_width_top = 1
+	st.border_width_bottom = 1
+	st.set_corner_radius_all(6)
+	st.set_expand_margin_all(4)
+	mat.add_theme_stylebox_override("panel", st)
+	add_child(mat)
+	move_child(mat, 0)

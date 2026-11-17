@@ -14,6 +14,7 @@ var _one_row_height: float = 0.0
 
 
 func _ready() -> void:
+	_skin()
 	_one_row_height = custom_minimum_size.y
 	get_viewport().size_changed.connect(_update_rows)
 	_update_rows()
@@ -84,3 +85,21 @@ func clear_units() -> void:
 		if is_instance_valid(card):
 			card.queue_free()
 	units.clear()
+
+
+func _skin() -> void:
+	UITheme.style_eyebrow(bench_label, Color(UITheme.GOLD, 0.85))
+	bench_label.add_theme_font_size_override("font_size", 15)
+	var mat := Panel.new()
+	mat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mat.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.0, 0.0, 0.0, 0.22)
+	st.border_color = Color(UITheme.GOLD_DIM, 0.28)
+	st.border_width_top = 1
+	st.border_width_bottom = 1
+	st.set_corner_radius_all(6)
+	st.set_expand_margin_all(4)
+	mat.add_theme_stylebox_override("panel", st)
+	add_child(mat)
+	move_child(mat, 0)

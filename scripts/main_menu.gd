@@ -13,11 +13,8 @@ func _build_ui() -> void:
 	for child in get_children():
 		child.queue_free()
 
-	# ── Background ──────────────────────────────────────────────────────────────
-	var bg := ColorRect.new()
-	bg.color = Color(0.07, 0.07, 0.10)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	# ── Background: animated mist + sigil behind the title ─────────────────────
+	add_child(UITheme.backdrop(1.0, Vector2(0.5, 0.22 if not _m else 0.1)))
 
 	# ── Scroll container so slots fit on small screens ──────────────────────────
 	var scroll := ScrollContainer.new()
@@ -28,15 +25,22 @@ func _build_ui() -> void:
 	var center := VBoxContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	center.add_theme_constant_override("separation", 8)
+	center.alignment = BoxContainer.ALIGNMENT_CENTER
 	scroll.add_child(center)
+	scroll.resized.connect(func(): center.custom_minimum_size.y = scroll.size.y)
 
 	var inner := VBoxContainer.new()
 	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inner.add_theme_constant_override("separation", 8)
+	inner.add_theme_constant_override("separation", 10)
 	var margin := MarginContainer.new()
-	for s in ["margin_left","margin_right","margin_top","margin_bottom"]:
-		margin.add_theme_constant_override(s, 32)
-	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var side_margin := 24 if _m else 0
+	for s in ["margin_left","margin_right"]:
+		margin.add_theme_constant_override(s, side_margin)
+	margin.add_theme_constant_override("margin_top", 28 if _m else 22)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER if not _m else Control.SIZE_EXPAND_FILL
+	if not _m:
+		margin.custom_minimum_size.x = 1320
 	margin.add_child(inner)
 	center.add_child(margin)
 
@@ -44,70 +48,73 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "BATTLEMAGE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 48 if _m else 56)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
+	UITheme.style_title(title, 76 if _m else 88)
 	inner.add_child(title)
 
 	var sub := Label.new()
-	sub.text = "Autobattler Roguelike"
+	sub.text = "AN  AUTOBATTLER  ROGUELIKE"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_color_override("font_color", Color(0.60, 0.60, 0.75))
+	UITheme.style_eyebrow(sub, UITheme.TEXT_DIM)
+	sub.add_theme_font_size_override("font_size", 15)
 	inner.add_child(sub)
 
-	inner.add_child(_hsep())
+	inner.add_child(UITheme.ornament(0, Color(UITheme.GOLD_DIM, 0.9)))
 
-	# ── Save slots ──────────────────────────────────────────────────────────────
-	var slots_label := Label.new()
-	slots_label.text = "SAVE SLOTS"
-	slots_label.add_theme_font_size_override("font_size", 14)
-	slots_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
-	inner.add_child(slots_label)
+	# ── Body: slots | (difficulty + gauntlet) ───────────────────────────────────
+	var body: BoxContainer = VBoxContainer.new() if _m else HBoxContainer.new()
+	body.add_theme_constant_override("separation", 18 if _m else 28)
+	inner.add_child(body)
 
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.size_flags_stretch_ratio = 1.6
+	left.add_theme_constant_override("separation", 10)
+	body.add_child(left)
+
+	left.add_child(_eyebrow("Save Slots"))
 	for i in range(GameData.SLOT_COUNT):
-		inner.add_child(_build_slot_row(i))
+		left.add_child(_build_slot_row(i))
 
-	inner.add_child(_hsep())
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 16)
+	body.add_child(right)
 
-	# ── Gauntlet section ────────────────────────────────────────────────────────
-	inner.add_child(_build_gauntlet_section())
+	right.add_child(_framed(_build_difficulty_section()))
+	right.add_child(_framed(_build_gauntlet_section()))
 
-	inner.add_child(_hsep())
-
-	# ── Difficulty ──────────────────────────────────────────────────────────────
-	inner.add_child(_build_difficulty_section())
-
-	inner.add_child(_hsep())
+	inner.add_child(UITheme.ornament(0, Color(UITheme.GOLD_DIM, 0.6)))
 
 	# ── History & Exit ──────────────────────────────────────────────────────────
 	var bottom: BoxContainer = VBoxContainer.new() if _m else HBoxContainer.new()
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
-	bottom.add_theme_constant_override("separation", 12 if _m else 16)
+	bottom.add_theme_constant_override("separation", 12 if _m else 22)
 	inner.add_child(bottom)
 
 	var hist_btn := Button.new()
 	hist_btn.text = "Run History"
-	hist_btn.custom_minimum_size = Vector2(200, 56 if _m else 44)
+	hist_btn.custom_minimum_size = Vector2(220, 56 if _m else 46)
 	hist_btn.pressed.connect(_on_history_pressed)
 	bottom.add_child(hist_btn)
 
 	var manual_btn := Button.new()
 	manual_btn.text = "Unit Manual"
-	manual_btn.custom_minimum_size = Vector2(200, 56 if _m else 44)
+	manual_btn.custom_minimum_size = Vector2(220, 56 if _m else 46)
 	manual_btn.pressed.connect(_on_manual_pressed)
 	bottom.add_child(manual_btn)
 
 	var exit_btn := Button.new()
 	exit_btn.text = "Exit Game"
-	exit_btn.custom_minimum_size = Vector2(200, 56 if _m else 44)
+	exit_btn.custom_minimum_size = Vector2(220, 56 if _m else 46)
 	exit_btn.pressed.connect(_on_exit_pressed)
 	bottom.add_child(exit_btn)
 
-	inner.add_child(_hsep())
-
 	var ui_btn := Button.new()
 	ui_btn.text = _ui_mode_label()
-	ui_btn.add_theme_font_size_override("font_size", 11)
-	ui_btn.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
+	ui_btn.add_theme_font_override("font", UITheme.font_body)
+	ui_btn.add_theme_font_size_override("font_size", 16)
+	ui_btn.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
+	ui_btn.add_theme_color_override("font_hover_color", UITheme.TEXT_DIM)
 	ui_btn.flat = true
 	ui_btn.pressed.connect(func():
 		var next: int = ({0: 1, 1: -1, -1: 0} as Dictionary)[Platform.override_mode]
@@ -116,6 +123,40 @@ func _build_ui() -> void:
 		_build_ui())
 	inner.add_child(ui_btn)
 
+	_stagger_in(inner)
+
+
+# Fade each block in, top to bottom.
+func _stagger_in(box: Control) -> void:
+	var i := 0
+	for c in box.get_children():
+		if not (c is CanvasItem):
+			continue
+		c.modulate.a = 0.0
+		var tw := c.create_tween()
+		tw.tween_interval(0.05 + i * 0.06)
+		tw.tween_property(c, "modulate:a", 1.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		i += 1
+
+
+func _eyebrow(text: String) -> Label:
+	var l := Label.new()
+	l.text = text.to_upper()
+	UITheme.style_eyebrow(l)
+	l.add_theme_font_size_override("font_size", 16)
+	return l
+
+
+func _framed(content: Control) -> PanelContainer:
+	var p := PanelContainer.new()
+	var s := UITheme.panel_box(UITheme.PANEL, Color(UITheme.GOLD_DIM, 0.55), 4, 16)
+	s.set_content_margin_all(18)
+	p.add_theme_stylebox_override("panel", s)
+	p.add_child(content)
+	return p
+
+
+const _ROMAN := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 
 # ── Slot row ─────────────────────────────────────────────────────────────────
 
@@ -124,37 +165,44 @@ func _build_slot_row(idx: int) -> Control:
 	var occupied: bool = slot != null and slot is Dictionary
 
 	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.11, 0.11, 0.16, 1.0)
-	style.set_corner_radius_all(6)
-	style.set_border_width_all(1)
-	style.border_color = Color(0.30, 0.30, 0.40)
+	var style := UITheme.panel_box(
+		UITheme.PANEL_HI if occupied else Color(UITheme.PANEL, 0.78),
+		Color(UITheme.GOLD, 0.75) if occupied else Color(UITheme.GOLD_DIM, 0.35), 4, 10 if occupied else 6)
+	if occupied:
+		style.border_width_left = 4
+	style.set_content_margin_all(0)
 	panel.add_theme_stylebox_override("panel", style)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 12)
+	hbox.add_theme_constant_override("separation", 16)
 	var margin := MarginContainer.new()
-	for s in ["margin_left","margin_right","margin_top","margin_bottom"]:
-		margin.add_theme_constant_override(s, 10)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
 	margin.add_child(hbox)
 	panel.add_child(margin)
 
-	# Slot number badge
+	# Slot numeral
 	var badge := Label.new()
-	badge.text = "SLOT\n%d" % (idx + 1)
+	badge.text = _ROMAN[idx] if idx < _ROMAN.size() else str(idx + 1)
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	badge.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
-	badge.add_theme_font_size_override("font_size", 12)
-	badge.custom_minimum_size = Vector2(48, 0)
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.add_theme_font_override("font", UITheme.font_display_bold)
+	badge.add_theme_font_size_override("font_size", 30)
+	badge.add_theme_color_override("font_color", UITheme.GOLD if occupied else UITheme.TEXT_FAINT)
+	badge.custom_minimum_size = Vector2(56, 0)
 	hbox.add_child(badge)
 
 	var vsep := VSeparator.new()
+	vsep.add_theme_constant_override("separation", 2)
 	hbox.add_child(vsep)
 
 	# Info column
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 4)
+	info.alignment = BoxContainer.ALIGNMENT_CENTER
+	info.add_theme_constant_override("separation", 2)
 	hbox.add_child(info)
 
 	if occupied:
@@ -162,11 +210,16 @@ func _build_slot_row(idx: int) -> Control:
 		var hp: int        = int(slot.get("player_hp", 100))
 		var tier: int      = int(slot.get("tier", 1))
 
-		var stats := Label.new()
-		stats.text = "Turn %d / 13   ·   HP %d   ·   Tier %d" % [
-			map_row + 1, hp, tier]
-		stats.add_theme_color_override("font_color", Color(0.85, 0.85, 0.90))
-		stats.add_theme_font_size_override("font_size", 13)
+		var stats := RichTextLabel.new()
+		stats.bbcode_enabled = true
+		stats.fit_content = true
+		stats.scroll_active = false
+		stats.autowrap_mode = TextServer.AUTOWRAP_OFF
+		stats.add_theme_font_size_override("normal_font_size", 17)
+		stats.add_theme_font_size_override("bold_font_size", 17)
+		var dim := UITheme.TEXT_DIM.to_html(false)
+		stats.text = "[color=#%s]TURN[/color] [b]%d[/b][color=#%s] / 13[/color]     [color=#%s]♥[/color] [b]%d[/b]     [color=#%s]TIER[/color] [b]%d[/b]" % [
+			dim, map_row + 1, dim, UITheme.EMBER.to_html(false), hp, dim, tier]
 		info.add_child(stats)
 
 		var names: Array = slot.get("unit_names", [])
@@ -178,39 +231,48 @@ func _build_slot_row(idx: int) -> Control:
 					names.append(ud.display_name)
 
 		var units_label := Label.new()
-		units_label.text = "Board: " + (", ".join(names) if not names.is_empty() else "(empty)")
-		units_label.add_theme_color_override("font_color", Color(0.65, 0.80, 0.65))
-		units_label.add_theme_font_size_override("font_size", 12)
+		units_label.text = "  ·  ".join(names) if not names.is_empty() else "(empty board)"
+		units_label.add_theme_color_override("font_color", UITheme.ARCANE.lerp(UITheme.TEXT, 0.35))
+		units_label.add_theme_font_size_override("font_size", 15)
 		units_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 		info.add_child(units_label)
 	else:
 		var empty_lbl := Label.new()
-		empty_lbl.text = "Empty"
-		empty_lbl.add_theme_color_override("font_color", Color(0.40, 0.40, 0.50))
-		empty_lbl.add_theme_font_size_override("font_size", 14)
+		empty_lbl.text = "An unwritten page"
+		empty_lbl.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
+		empty_lbl.add_theme_font_size_override("font_size", 17)
 		info.add_child(empty_lbl)
 
 	# Button column
-	var btns := VBoxContainer.new()
-	btns.add_theme_constant_override("separation", 4)
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 8)
 	hbox.add_child(btns)
 
 	if occupied:
 		var cont_btn := Button.new()
 		cont_btn.text = "Continue"
-		cont_btn.custom_minimum_size = Vector2(110, 48 if _m else 36)
+		cont_btn.custom_minimum_size = Vector2(130, 48 if _m else 40)
+		cont_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		cont_btn.pressed.connect(_on_continue_slot.bind(idx))
 		btns.add_child(cont_btn)
 
 		var clear_btn := Button.new()
-		clear_btn.text = "Clear"
-		clear_btn.custom_minimum_size = Vector2(110, 48 if _m else 36)
+		clear_btn.text = "✕"
+		clear_btn.tooltip_text = "Clear this slot"
+		clear_btn.custom_minimum_size = Vector2(48 if _m else 40, 48 if _m else 40)
+		clear_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		clear_btn.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		clear_btn.add_theme_color_override("font_hover_color", UITheme.EMBER)
+		for st in ["normal", "hover", "pressed"]:
+			clear_btn.add_theme_stylebox_override(st, UITheme.button_box(st, UITheme.EMBER))
 		clear_btn.pressed.connect(_on_clear_slot.bind(idx))
 		btns.add_child(clear_btn)
 	else:
 		var new_btn := Button.new()
 		new_btn.text = "New Run"
-		new_btn.custom_minimum_size = Vector2(110, 48 if _m else 36)
+		new_btn.custom_minimum_size = Vector2(130, 48 if _m else 40)
+		new_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		new_btn.pressed.connect(_on_new_slot.bind(idx))
 		btns.add_child(new_btn)
 
@@ -237,11 +299,7 @@ func _build_difficulty_section() -> Control:
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
 
-	var header := Label.new()
-	header.text = "DIFFICULTY"
-	header.add_theme_font_size_override("font_size", 14)
-	header.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
-	vbox.add_child(header)
+	vbox.add_child(_eyebrow("Difficulty"))
 
 	var level := GameData.difficulty_level
 	var max_lvl := GameData.max_unlocked_difficulty
@@ -263,10 +321,11 @@ func _build_difficulty_section() -> Control:
 	var level_name := "Normal" if level == 0 else "Level %d" % level
 	var level_lbl := Label.new()
 	level_lbl.text = level_name
-	level_lbl.custom_minimum_size = Vector2(100, 0)
+	level_lbl.custom_minimum_size = Vector2(150, 0)
 	level_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	level_lbl.add_theme_font_size_override("font_size", 16)
-	level_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30) if level > 0 else Color(0.80, 0.85, 0.90))
+	level_lbl.add_theme_font_override("font", UITheme.font_display_bold)
+	level_lbl.add_theme_font_size_override("font_size", 22)
+	level_lbl.add_theme_color_override("font_color", UITheme.EMBER if level > 0 else UITheme.TEXT)
 	row.add_child(level_lbl)
 
 	var next_btn := Button.new()
@@ -283,15 +342,15 @@ func _build_difficulty_section() -> Control:
 	if mods.is_empty():
 		var none_lbl := Label.new()
 		none_lbl.text = "No modifiers active."
-		none_lbl.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
-		none_lbl.add_theme_font_size_override("font_size", 12)
+		none_lbl.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
+		none_lbl.add_theme_font_size_override("font_size", 15)
 		vbox.add_child(none_lbl)
 	else:
 		for mod in mods:
 			var mod_lbl := Label.new()
 			mod_lbl.text = "  •  " + mod
-			mod_lbl.add_theme_color_override("font_color", Color(0.90, 0.55, 0.30))
-			mod_lbl.add_theme_font_size_override("font_size", 12)
+			mod_lbl.add_theme_color_override("font_color", UITheme.EMBER)
+			mod_lbl.add_theme_font_size_override("font_size", 15)
 			vbox.add_child(mod_lbl)
 
 	# Unlock hint
@@ -300,8 +359,8 @@ func _build_difficulty_section() -> Control:
 		if not hint_text.is_empty():
 			var hint_lbl := Label.new()
 			hint_lbl.text = hint_text
-			hint_lbl.add_theme_color_override("font_color", Color(0.45, 0.55, 0.65))
-			hint_lbl.add_theme_font_size_override("font_size", 12)
+			hint_lbl.add_theme_color_override("font_color", UITheme.ARCANE.darkened(0.25))
+			hint_lbl.add_theme_font_size_override("font_size", 15)
 			vbox.add_child(hint_lbl)
 
 	return vbox
@@ -313,17 +372,13 @@ func _build_gauntlet_section() -> Control:
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
 
-	var header := Label.new()
-	header.text = "GAUNTLET"
-	header.add_theme_font_size_override("font_size", 14)
-	header.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
-	vbox.add_child(header)
+	vbox.add_child(_eyebrow("Gauntlet"))
 
 	if not GameData.has_gauntlet_data():
 		var lbl := Label.new()
 		lbl.text = "Complete a 25-battle run to unlock the Gauntlet."
-		lbl.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
-		lbl.add_theme_font_size_override("font_size", 13)
+		lbl.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
+		lbl.add_theme_font_size_override("font_size", 16)
 		vbox.add_child(lbl)
 		return vbox
 
@@ -340,15 +395,16 @@ func _build_gauntlet_section() -> Control:
 	else:
 		var no_champ := Label.new()
 		no_champ.text = "Champion: None yet — beat the Last Winning Run in the Gauntlet to set one."
-		no_champ.add_theme_color_override("font_color", Color(0.50, 0.50, 0.60))
-		no_champ.add_theme_font_size_override("font_size", 12)
+		no_champ.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
+		no_champ.add_theme_font_size_override("font_size", 15)
 		no_champ.autowrap_mode = TextServer.AUTOWRAP_WORD
 		vbox.add_child(no_champ)
 
 	var enter_btn := Button.new()
-	enter_btn.text = "Enter Gauntlet  (use last winning board as challenger)"
+	enter_btn.text = "Enter the Gauntlet"
+	enter_btn.tooltip_text = "Your last winning board stands as the challenger."
 	enter_btn.custom_minimum_size = Vector2(0, 56 if _m else 44)
-	enter_btn.add_theme_color_override("font_color", Color(1.0, 0.80, 0.20))
+	enter_btn.add_theme_color_override("font_color", UITheme.GOLD_HI)
 	enter_btn.pressed.connect(_on_gauntlet_pressed)
 	vbox.add_child(enter_btn)
 
@@ -362,15 +418,15 @@ func _build_gauntlet_board_row(label_text: String, names: Array) -> Control:
 	var lbl := Label.new()
 	lbl.text = label_text + ":"
 	lbl.custom_minimum_size = Vector2(180, 0)
-	lbl.add_theme_color_override("font_color", Color(0.80, 0.80, 0.90))
-	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	lbl.add_theme_font_size_override("font_size", 16)
 	hbox.add_child(lbl)
 
 	var units_lbl := Label.new()
 	units_lbl.text = ", ".join(names) if not names.is_empty() else "(unknown)"
 	units_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	units_lbl.add_theme_color_override("font_color", Color(0.65, 0.85, 0.65))
-	units_lbl.add_theme_font_size_override("font_size", 12)
+	units_lbl.add_theme_color_override("font_color", UITheme.ARCANE.lerp(UITheme.TEXT, 0.35))
+	units_lbl.add_theme_font_size_override("font_size", 15)
 	units_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	hbox.add_child(units_lbl)
 
@@ -475,7 +531,7 @@ func _on_exit_pressed() -> void:
 
 func _show_confirm(message: String, on_confirm: Callable) -> void:
 	var overlay := ColorRect.new()
-	overlay.color = Color(0, 0, 0, 0.6)
+	overlay.color = Color(UITheme.INK, 0.78)
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.z_index = 200
 	add_child(overlay)
@@ -525,7 +581,7 @@ func _show_confirm(message: String, on_confirm: Callable) -> void:
 
 func _show_history_overlay() -> void:
 	var overlay := ColorRect.new()
-	overlay.color = Color(0, 0, 0, 0.75)
+	overlay.color = Color(UITheme.INK, 0.85)
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.z_index = 200
 	add_child(overlay)
@@ -548,9 +604,9 @@ func _show_history_overlay() -> void:
 	var title := Label.new()
 	title.text = "RUN HISTORY"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 20)
+	UITheme.style_title(title, 30)
 	vb.add_child(title)
-	vb.add_child(HSeparator.new())
+	vb.add_child(UITheme.ornament())
 
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 340)
@@ -566,7 +622,7 @@ func _show_history_overlay() -> void:
 	if history.is_empty():
 		var empty := Label.new()
 		empty.text = "No completed runs yet."
-		empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		empty.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		list.add_child(empty)
 	else:
@@ -579,7 +635,7 @@ func _show_history_overlay() -> void:
 			var units: String  = ", ".join(entry.get("unit_names", []))
 			lbl.text = "#%d  %s  —  %d battles  [%s]\n  %s" % [
 				i + 1, result.to_upper(), battles, date, units]
-			lbl.add_theme_font_size_override("font_size", 12)
+			lbl.add_theme_font_size_override("font_size", 15)
 			lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 			list.add_child(lbl)
 			if i < history.size() - 1:

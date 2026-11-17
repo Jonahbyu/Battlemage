@@ -319,6 +319,8 @@ func _build_background() -> void:
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Opaque on phones: the battle's top bar otherwise shows through the title.
 	bg.color = Color(0.05, 0.05, 0.08, 1.0 if Platform.is_mobile() else 0.96)
+	UITheme.apply_backdrop(bg, 0.0, Vector2.ZERO, UITheme.ARCANE.darkened(0.3))
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(bg)
 
 
@@ -333,8 +335,8 @@ func _build_map_panel() -> void:
 	var title := Label.new()
 	title.text = "Choose Your Path"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
-	title.custom_minimum_size = Vector2(0, 40)
+	UITheme.style_title(title, 32)
+	title.custom_minimum_size = Vector2(0, 48)
 	_map_panel.add_child(title)
 
 	_subtitle_label = Label.new()
@@ -395,20 +397,24 @@ func _make_row_style(is_current: bool, is_past: bool, is_boss: bool) -> StyleBox
 	s.content_margin_top    = 6
 	s.content_margin_bottom = 6
 	if is_boss:
-		s.bg_color     = Color(0.18, 0.06, 0.06)
+		s.bg_color     = Color(0.18, 0.05, 0.05, 0.94)
 		s.border_color = Color(0.9, 0.25, 0.25)
 		s.set_border_width_all(2)
+		s.shadow_color = Color(0.9, 0.2, 0.1, 0.3)
+		s.shadow_size  = 16
 	elif is_current:
-		s.bg_color     = Color(0.13, 0.13, 0.20)
-		s.border_color = Color(1.0, 0.88, 0.3)
+		s.bg_color     = Color(0.14, 0.11, 0.20, 0.96)
+		s.border_color = UITheme.GOLD
 		s.set_border_width_all(2)
+		s.shadow_color = Color(UITheme.GOLD, 0.25)
+		s.shadow_size  = 14
 	elif is_past:
-		s.bg_color     = Color(0.06, 0.06, 0.07)
-		s.border_color = Color(0.18, 0.18, 0.18)
+		s.bg_color     = Color(UITheme.PANEL_LO, 0.6)
+		s.border_color = Color(0.2, 0.18, 0.16, 0.6)
 		s.set_border_width_all(1)
 	else:
-		s.bg_color     = Color(0.09, 0.09, 0.13)
-		s.border_color = Color(0.22, 0.22, 0.28)
+		s.bg_color     = Color(UITheme.PANEL, 0.82)
+		s.border_color = Color(UITheme.GOLD_DIM, 0.4)
 		s.set_border_width_all(1)
 	return s
 
@@ -482,7 +488,9 @@ func _rebuild_map_grid() -> void:
 
 		var num_lbl := Label.new()
 		num_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		num_lbl.add_theme_font_size_override("font_size", 11)
+		num_lbl.add_theme_font_size_override("font_size", 14)
+		num_lbl.add_theme_font_override("font", UITheme.font_display_bold)
+		num_lbl.set_meta("_ui_sized", true)
 		if is_boss:
 			num_lbl.text = "☠  FINAL BOSS"
 			num_lbl.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))

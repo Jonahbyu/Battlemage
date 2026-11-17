@@ -21,6 +21,7 @@ config/quit_on_go_back=false
 GameData="*res://scripts/game_data.gd"
 Platform="*res://scripts/platform.gd"
 Updater="*res://scripts/updater.gd"
+UITheme="*res://scripts/ui_theme.gd"
 
 [display]
 
