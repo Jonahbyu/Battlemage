@@ -3916,6 +3916,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if _myconid_shop != null and _myconid_shop.visible:
 		return
+	if _elf_shop != null and _elf_shop.visible:
+		return
+	if _covenant_shop != null and _covenant_shop.visible:
+		return
+	if _satyr_shop != null and _satyr_shop.visible:
+		return
 	if _spell_discovery_panel != null and _spell_discovery_panel.visible:
 		return
 
