@@ -177,7 +177,7 @@ const ROUND_SAVE_PATH := "user://round.json"
 const SELL_COUNTER_SAVE_PATH := "user://sell_counter.json"
 const RESOURCES_SAVE_PATH := "user://resources.json"
 const FACTIONS_SAVE_PATH := "user://active_factions.json"
-const MAP_SAVE_PATH := "user://map.json"
+const MAP_SAVE_PATH := "user://map.json"  # legacy (map removed); only cleared now
 
 const ALL_PLAYABLE_FACTIONS: Array = [
 	RaceType.Race.HUMAN, RaceType.Race.ELF, RaceType.Race.MAGE,
@@ -298,18 +298,25 @@ var _targeting_valid: Array = []
 var _targeting_callback: Callable
 var _targeting_line: Line2D = null
 
-# ── Map system ────────────────────────────────────────────────────────────────
-var _map_screen: MapScreen = null
-var _map_data: Dictionary = {}
-var _map_current_row: int = 0        # which row is currently being selected/played
-var _combat_node_difficulty: float = 1.0  # multiplier set by map node choice
-var _pending_node_is_elite: bool = false  # relic selection follows this combat
+# ── Run turns & contracts ─────────────────────────────────────────────────────
+var _contract_screen: ContractScreen = null
+var _turn: int = 0                   # 0-based; 0-11 regular fights, 12 = boss (saved as "map_row")
+var _combat_node_difficulty: float = 1.0  # enemy stat multiplier for the next fight
 var _pending_node_is_boss: bool = false   # victory follows this combat
+var _fight_is_bounty: bool = false   # current fight is a contract's extra fight
+var _contracts: Array = []           # active contracts (ContractSystem dicts)
+var _contract_offers: Array = []     # offers on the open Contract Board
+var _reward_queue: Array = []        # reward items waiting to be granted
+var _reward_busy: bool = false       # a reward modal (relic/fortify/free unit) is open
+var _reward_discovery_pending: bool = false
+var _in_shop_phase: bool = false     # between rounds, before Next Fight is pressed
+var _board_offered_this_phase: bool = false
+var _bonus_rerolls: int = 0          # from contract rewards; spent on the next discovery
 var _relics: Array = []              # list of relic IDs acquired during the run
 var _win_streak: int = 0             # consecutive wins (for battle_hardened relic)
-var _non_combat_turn: bool = false   # true while a rest/event turn is in progress
 var _relics_label: Label = null      # shows current relics in UI
-var _go_to_map_btn: Button = null    # shown after discovery; lets player shop before opening map
+var _contracts_label: Label = null   # tracker strip: turn + active contracts
+var _next_fight_btn: Button = null   # shown in the shop phase; starts the next turn
 
 
 func _get_tier_upgrade_cost() -> int:
@@ -451,17 +458,14 @@ func _ready() -> void:
 		"Covenant": Callable(self, "_all_shops_open_covenant"),
 	}))
 
-	# Map screen (overlays combat arena for encounter selection).
+	# Contract Board / relic pick overlay.
 	# z_index=22 keeps it above normal UI and the support slot (z=20) but below
-	# discovery_screen (z=25), so a triple bonus pick is never hidden behind
-	# the map panel.
-	_map_screen = MapScreen.new()
-	_map_screen.z_index = 22
-	add_child(_map_screen)
-	_map_screen.node_selected.connect(_on_map_node_selected)
-	_map_screen.relic_selected.connect(_on_relic_selected)
-	_map_screen.rest_completed.connect(_on_rest_completed)
-	_map_screen.event_completed.connect(_on_event_completed)
+	# discovery_screen (z=25), so a triple bonus pick is never hidden behind it.
+	_contract_screen = ContractScreen.new()
+	_contract_screen.z_index = 22
+	add_child(_contract_screen)
+	_contract_screen.offer_chosen.connect(_on_contract_offer_chosen)
+	_contract_screen.relic_selected.connect(_on_relic_selected)
 	# Above the support slot (z=20) so its backdrop covers the whole arena.
 	discovery_screen.z_index = 25
 
@@ -471,14 +475,24 @@ func _ready() -> void:
 	_relics_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	$RootHBox/MainLayout/ResourceBar.add_child(_relics_label)
 
-	# "Go to Map" button — appears after discovery/relic pick so player can shop first
-	_go_to_map_btn = Button.new()
-	_go_to_map_btn.text = "Go to Map  ▶"
-	_go_to_map_btn.custom_minimum_size = Vector2(150, 44)
-	_go_to_map_btn.add_theme_font_size_override("font_size", 14)
-	_go_to_map_btn.visible = false
-	_go_to_map_btn.pressed.connect(_on_go_to_map_pressed)
-	$RootHBox/MainLayout/CenterRow.add_child(_go_to_map_btn)
+	# Contract tracker strip, directly under the resource bar
+	_contracts_label = Label.new()
+	_contracts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_contracts_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_contracts_label.add_theme_font_size_override("font_size", 12)
+	_contracts_label.add_theme_color_override("font_color", Color(0.85, 0.8, 0.6))
+	var main_layout: Control = $RootHBox/MainLayout
+	main_layout.add_child(_contracts_label)
+	main_layout.move_child(_contracts_label, $RootHBox/MainLayout/ResourceBar.get_index() + 1)
+
+	# "Next Fight" button — shown between rounds so the player can shop first
+	_next_fight_btn = Button.new()
+	_next_fight_btn.text = "Next Fight  ▶"
+	_next_fight_btn.custom_minimum_size = Vector2(150, 44)
+	_next_fight_btn.add_theme_font_size_override("font_size", 14)
+	_next_fight_btn.visible = false
+	_next_fight_btn.pressed.connect(_on_next_fight_pressed)
+	$RootHBox/MainLayout/CenterRow.add_child(_next_fight_btn)
 
 	# If a slot is active, write its saved data into the individual cache files
 	# so the existing load functions pick it up transparently.
@@ -496,13 +510,14 @@ func _ready() -> void:
 		_player_hp = GameData.starting_player_hp
 	_initialize_active_factions()
 	_build_all_shops_panel()
+	if not GameData.gauntlet_mode:
+		_set_fight_for_turn()
 	_populate_player_board()
 	_populate_bench_from_save()
-	# For new games, enemy board is populated after map node selection (not yet).
+	# For new games, enemy board is populated after the first unit pick.
 	if not _new_game_discovery:
 		_populate_enemy_board()
-	if not GameData.gauntlet_mode:
-		_load_map()
+	_update_contracts_label()
 	call_deferred("_setup_support_slot_panel")
 	if GameData.gauntlet_mode:
 		call_deferred("_enter_gauntlet_mode")
@@ -528,7 +543,7 @@ func _populate_player_board() -> void:
 	var saved := _load_player_order()
 	if saved.is_empty():
 		_new_game_discovery = true
-		discovery_screen.activate(_player_tier, 1 if "extra_reroll" in _relics else 0)
+		discovery_screen.activate(_player_tier, _take_discovery_rerolls())
 	else:
 		for entry in saved:
 			var card: UnitCard = UnitCardScene.instantiate()
@@ -545,7 +560,7 @@ func _populate_bench_from_save() -> void:
 		_apply_card_entry(card, entry)
 
 
-func _populate_enemy_board() -> void:
+func _populate_enemy_board(theme_override: int = -1) -> void:
 	if GameData.gauntlet_mode:
 		return
 	enemy_board.clear_units()
@@ -560,6 +575,8 @@ func _populate_enemy_board() -> void:
 	if available_enemy_factions.is_empty():
 		available_enemy_factions = ENEMY_FACTIONS
 	var faction_theme: RaceType.Race = available_enemy_factions.pick_random()
+	if theme_override >= 0 and available_enemy_factions.has(theme_override):
+		faction_theme = theme_override as RaceType.Race
 
 	var eligible: Array = ALL_UNITS.filter(func(u): return u.tier <= _player_tier and _active_factions.has(u.race))
 	if eligible.is_empty():
@@ -711,17 +728,17 @@ func _build_enemy_shop_data() -> void:
 
 func _on_continue_pressed() -> void:
 	continue_button.visible = false
-	if is_instance_valid(_go_to_map_btn):
-		_go_to_map_btn.visible = false
-	# Non-combat turn (rest/event) — just advance the map
-	if _non_combat_turn:
-		_non_combat_turn = false
-		_advance_map_row()
+	if is_instance_valid(_next_fight_btn):
+		_next_fight_btn.visible = false
+	# Bounty / side-boss fights: no income, no discovery, no turn used.
+	if _fight_is_bounty:
+		_fight_is_bounty = false
+		_restore_board_after_fight()
+		_enter_shop_phase()
 		return
 	_discovery_from_combat = true
 	_apply_round_income()
-	var extra := 1 if "extra_reroll" in _relics else 0
-	discovery_screen.activate(_player_tier, extra)
+	discovery_screen.activate(_player_tier, _take_discovery_rerolls())
 
 
 func _apply_round_income() -> void:
@@ -760,6 +777,7 @@ func _on_tier_upgrade_pressed() -> void:
 	_player_tier += 1
 	_save_resources()
 	_update_resource_bar()
+	_contracts_event("state")
 
 
 func _on_discovery_unit_chosen(unit_data: UnitData) -> void:
@@ -770,10 +788,16 @@ func _on_discovery_unit_chosen(unit_data: UnitData) -> void:
 		_connect_player_card(new_game_card)
 		_save_player_order()
 		_new_game_discovery = false
-		# First fight is automatic (no map choice). Populate enemy and show fight button.
+		# First fight is turn 0. Populate enemy and show fight button, after
+		# the opening Contract Board.
+		_turn = 0
+		_set_fight_for_turn()
 		_populate_enemy_board()
 		player_board.is_locked = false
 		fight_button.visible = true
+		_update_contracts_label()
+		if not GameData.gauntlet_mode:
+			_offer_contracts(-1)
 		return
 
 	var card: UnitCard = UnitCardScene.instantiate()
@@ -788,24 +812,27 @@ func _on_discovery_unit_chosen(unit_data: UnitData) -> void:
 	if _discovery_from_combat:
 		_round += 1
 		_save_round()
-		_rebuild_board_from_template()
-		_apply_relic_auras()
-		_reset_bench_units()
-		player_board.is_locked = true
-		fight_button.visible = false
-		result_banner.visible = false
+		_restore_board_after_fight()
 		_discovery_from_combat = false
-
+		_check_for_triples()
 		if not GameData.gauntlet_mode:
-			if _pending_node_is_elite:
-				_pending_node_is_elite = false
-				_map_screen.show_relic_selection(_pick_random_relics(3))
-			else:
-				# Let player shop before opening the map
-				if is_instance_valid(_go_to_map_btn):
-					_go_to_map_btn.visible = true
+			_after_regular_round()
+		return
 
 	_check_for_triples()
+	if _reward_discovery_pending:
+		_reward_discovery_pending = false
+		_reward_step()
+
+
+# Rebuild the board from its pre-fight template and lock it for the shop phase.
+func _restore_board_after_fight() -> void:
+	_rebuild_board_from_template()
+	_apply_relic_auras()
+	_reset_bench_units()
+	player_board.is_locked = true
+	fight_button.visible = false
+	result_banner.visible = false
 
 
 func _rebuild_board_from_template() -> void:
@@ -976,6 +1003,8 @@ func _apply_triple(trio: Array) -> void:
 
 	_discovery_from_combat = false
 	discovery_screen.activate(_player_tier, 1 if "extra_reroll" in _relics else 0)
+	if not GameData.gauntlet_mode:
+		_contracts_event("triple")
 
 
 # ── Surge ────────────────────────────────────────────────────────────────────
@@ -1278,6 +1307,8 @@ func _resolve_gun_upgrade_surge(source: UnitCard, count: int = 1) -> void:
 		source.flash_surge_source()
 		target.flash_surge_buff()
 		print("Quartermaster: %s weapon +%d level!" % [target.data.display_name, levels])
+		if not GameData.gauntlet_mode:
+			_contracts_event("state")
 	)
 
 
@@ -1318,6 +1349,8 @@ func _resolve_weapon_level_surge(source: UnitCard) -> void:
 	source.refresh_display()
 	source.flash_surge_source()
 	print("%s Surge: weapon +%d levels → L%d!" % [source.data.display_name, levels, source.equipped_weapon.level])
+	if not GameData.gauntlet_mode:
+		_contracts_event("state")
 
 
 func _resolve_cost_reduction_surge(source: UnitCard) -> void:
@@ -2415,7 +2448,8 @@ func _open_unit_target_picker_from_list(targets: Array, callback: Callable) -> v
 	vbox.add_child(cancel)
 
 
-func _open_unit_target_picker(callback: Callable) -> void:
+func _open_unit_target_picker(callback: Callable, allow_cancel: bool = true,
+		title_text: String = "Choose a target") -> void:
 	var targets: Array = player_board.units.filter(
 		func(u): return is_instance_valid(u) and u.data != null and not u.is_dead)
 	if targets.is_empty():
@@ -2458,7 +2492,7 @@ func _open_unit_target_picker(callback: Callable) -> void:
 	margin.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "Choose a target"
+	title.text = title_text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(title)
@@ -2473,10 +2507,11 @@ func _open_unit_target_picker(callback: Callable) -> void:
 			callback.call(unit))
 		vbox.add_child(btn)
 
-	var cancel := Button.new()
-	cancel.text = "Cancel"
-	cancel.pressed.connect(overlay.queue_free)
-	vbox.add_child(cancel)
+	if allow_cancel:
+		var cancel := Button.new()
+		cancel.text = "Cancel"
+		cancel.pressed.connect(overlay.queue_free)
+		vbox.add_child(cancel)
 
 
 func _cast_hand_spell(spell: SpellData, card: Panel) -> void:
@@ -2622,6 +2657,7 @@ func _update_resource_bar() -> void:
 		tier_upgrade_button.text = "Upgrade Tier  (%dg)" % cost
 		tier_upgrade_button.disabled = _gold < cost
 	_update_relics_label()
+	_update_contracts_label()
 
 
 # ── Persistence ───────────────────────────────────────────────────────────────
@@ -2833,9 +2869,12 @@ func _save_resources() -> void:
 		"reaper_shop": _reaper_shop_data.to_dict() if _reaper_shop_data != null else {},
 		"myconid_shop": _myconid_shop_data.to_dict() if _myconid_shop_data != null else {},
 		"satyr_shop": _satyr_shop_data.to_dict() if _satyr_shop_data != null else {},
-		"map_row": _map_current_row,
+		"map_row": _turn,
 		"relics": _relics,
 		"win_streak": _win_streak,
+		"contracts": _contracts,
+		"reward_queue": _reward_queue,
+		"bonus_rerolls": _bonus_rerolls,
 	}
 	var file := FileAccess.open(RESOURCES_SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -2894,10 +2933,23 @@ func _load_resources() -> void:
 		var ssd = parsed.get("satyr_shop", {})
 		if ssd is Dictionary and not ssd.is_empty() and _satyr_shop_data != null:
 			_satyr_shop_data.from_dict(ssd)
-		_map_current_row = int(parsed.get("map_row", 0))
+		_turn = int(parsed.get("map_row", 0))
 		var rel = parsed.get("relics", [])
 		_relics = rel if rel is Array else []
 		_win_streak = int(parsed.get("win_streak", 0))
+		_contracts = []
+		var con = parsed.get("contracts", [])
+		if con is Array:
+			for c in con:
+				if c is Dictionary:
+					_contracts.append(_normalize_contract(c))
+		_reward_queue = []
+		var rq = parsed.get("reward_queue", [])
+		if rq is Array:
+			for r in rq:
+				if r is Dictionary:
+					_reward_queue.append(_normalize_reward(r))
+		_bonus_rerolls = int(parsed.get("bonus_rerolls", 0))
 		_update_relics_label()
 
 
@@ -2955,6 +3007,8 @@ func _on_human_weapon_bought(wtype: int) -> void:
 	_human_shop.weapon_discount_mult = _get_arms_dealer_multiplier()
 	_human_shop.pending_weapon_discount = _pending_weapon_discount
 	_human_shop.refresh(_gold)
+	if not GameData.gauntlet_mode:
+		_contracts_event("state")
 
 
 func _on_human_weapon_upgraded() -> void:
@@ -2977,6 +3031,8 @@ func _on_human_weapon_upgraded() -> void:
 	_human_shop.weapon_discount_mult = _get_arms_dealer_multiplier()
 	_human_shop.pending_weapon_discount = _pending_weapon_discount
 	_human_shop.refresh(_gold)
+	if not GameData.gauntlet_mode:
+		_contracts_event("state")
 
 
 func _on_human_weapon_sold() -> void:
@@ -3256,18 +3312,20 @@ func _on_combat_ended(damage: int) -> void:
 			_gold += 4
 		if "hp_restore" in _relics:
 			_player_hp = mini(_player_hp + 8, GameData.starting_player_hp + 20)
-		# Hard/elite bonus gold
-		if _combat_node_difficulty >= 1.35 and not _pending_node_is_boss:
-			var bonus := 6 if _combat_node_difficulty < 1.5 else 14
-			_gold += bonus
-			print("Difficulty bonus: +%d gold" % bonus)
 		# Win streak tracking for battle_hardened relic
 		_win_streak += 1
 		if "battle_hardened" in _relics and _win_streak > 0 and _win_streak % 3 == 0:
 			for entry: Dictionary in _board_template:
 				entry["atk"] = int(entry.get("atk", 1)) + 1
 			print("Battle Hardened: +1 ATK to all template units!")
-		_combat_node_difficulty = 1.0
+		# Contracts: progress uses the board as it was when the fight started
+		if _fight_is_bounty:
+			_finish_bounty(true)
+		var fought: Array = _board_template.map(func(e: Dictionary): return e.get("data"))
+		_contracts_event("win", {
+			"board_counts": _race_counts(fought),
+			"board_size": fought.size(),
+		})
 		# Boss victory ends the run
 		if _pending_node_is_boss:
 			_pending_node_is_boss = false
@@ -3282,7 +3340,9 @@ func _on_combat_ended(damage: int) -> void:
 		_sync_to_slot()
 		return
 	_win_streak = 0
-	_combat_node_difficulty = 1.0
+	if _fight_is_bounty:
+		_finish_bounty(false)
+	_contracts_event("loss")
 	_player_hp -= damage
 	_save_resources()
 	_update_resource_bar()
@@ -3347,10 +3407,12 @@ func _collect_slot_data() -> Dictionary:
 		"reaper_shop":    _reaper_shop_data.to_dict()   if _reaper_shop_data   != null else {},
 		"myconid_shop":   _myconid_shop_data.to_dict()  if _myconid_shop_data  != null else {},
 		"satyr_shop":     _satyr_shop_data.to_dict()    if _satyr_shop_data    != null else {},
-		"map_row":   _map_current_row,
+		"map_row":   _turn,
 		"relics":    _relics,
-		"map_data":  _map_data,
 		"win_streak": _win_streak,
+		"contracts": _contracts,
+		"reward_queue": _reward_queue,
+		"bonus_rerolls": _bonus_rerolls,
 	}
 
 
@@ -3399,54 +3461,234 @@ func _write_slot_to_files(slot: Dictionary) -> void:
 		"map_row":    slot.get("map_row", 0),
 		"relics":     slot.get("relics", []),
 		"win_streak": slot.get("win_streak", 0),
+		"contracts":  slot.get("contracts", []),
+		"reward_queue": slot.get("reward_queue", []),
+		"bonus_rerolls": slot.get("bonus_rerolls", 0),
 	}
 	f = FileAccess.open(RESOURCES_SAVE_PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(res))
 		f.close()
-	var map_slot = slot.get("map_data", {})
-	if map_slot is Dictionary and not map_slot.is_empty():
-		f = FileAccess.open(MAP_SAVE_PATH, FileAccess.WRITE)
-		if f:
-			var map_with_row: Dictionary = map_slot.duplicate(true)
-			map_with_row["current_row"] = slot.get("map_row", 0)
-			f.store_string(JSON.stringify(map_with_row))
-			f.close()
 
 
-# ── Map system ────────────────────────────────────────────────────────────────
+# ── Turns & contracts ─────────────────────────────────────────────────────────
 
-func _on_map_node_selected(node_data: Dictionary) -> void:
-	var ntype: String = node_data.get("type", "combat")
-	match ntype:
-		"combat", "combat_hard", "elite", "boss":
-			var info: Dictionary = MapScreen.NODE_INFO.get(ntype, {})
-			_combat_node_difficulty = info.get("difficulty", 1.0)
-			_pending_node_is_elite = ntype == "elite"
-			_pending_node_is_boss = ntype == "boss"
-			_populate_enemy_board()
-			player_board.is_locked = false
-			fight_button.visible = true
-			_sync_to_slot()
-			_save_map()
-		"rest":
-			_apply_round_income()
-			_map_screen.show_rest(_player_hp, GameData.starting_player_hp + 20)
-		"event":
-			_apply_round_income()
-			_map_screen.show_event()
+func _set_fight_for_turn() -> void:
+	_combat_node_difficulty = ContractSystem.difficulty_for_turn(_turn)
+	_pending_node_is_boss = _turn >= ContractSystem.BOSS_TURN
 
 
-func _advance_map_row() -> void:
-	_map_current_row += 1
-	_save_map()
-	_map_screen.show_map(_map_data, _map_current_row)
+# Called after the discovery pick that follows a regular fight.
+func _after_regular_round() -> void:
+	for c: Dictionary in _contracts:
+		if ContractSystem.is_fight(c) and c.get("state") == "queued":
+			c["state"] = "ready"
+	for c: Dictionary in _contracts:
+		if c.get("state") == "ready":
+			_start_bounty_fight(c)
+			return
+	_enter_shop_phase()
 
 
-func _on_go_to_map_pressed() -> void:
-	if is_instance_valid(_go_to_map_btn):
-		_go_to_map_btn.visible = false
-	_advance_map_row()
+func _enter_shop_phase() -> void:
+	_in_shop_phase = true
+	_board_offered_this_phase = false
+	_expire_contracts()
+	_update_contracts_label()
+	_save_resources()
+	_sync_to_slot()
+	_run_reward_queue(_shop_phase_continue)
+
+
+func _shop_phase_continue() -> void:
+	if not _in_shop_phase:
+		return
+	if not _board_offered_this_phase and _contracts.size() < ContractSystem.MAX_ACTIVE \
+			and _turn < ContractSystem.LAST_REGULAR_TURN:
+		_board_offered_this_phase = true
+		if _offer_contracts(_turn):
+			return
+	if is_instance_valid(_next_fight_btn):
+		_next_fight_btn.text = "Boss Fight  ▶" if _turn + 1 >= ContractSystem.BOSS_TURN else "Next Fight  ▶"
+		_next_fight_btn.visible = true
+
+
+# Shows the Contract Board. `gen_turn` is the turn just finished (-1 before the
+# first fight). Returns false when there was nothing to offer.
+func _offer_contracts(gen_turn: int) -> bool:
+	var snap := _contract_snapshot()
+	snap["turn"] = gen_turn
+	_contract_offers = ContractSystem.generate_offers(snap)
+	if _contract_offers.is_empty():
+		return false
+	_contract_screen.show_offers(_contract_offers, _contracts.size(), ContractSystem.MAX_ACTIVE)
+	return true
+
+
+func _on_contract_offer_chosen(index: int) -> void:
+	if index >= 0 and index < _contract_offers.size():
+		var c: Dictionary = _contract_offers[index]
+		c["accepted_turn"] = _turn
+		if ContractSystem.is_fight(c):
+			c["state"] = "queued"
+		_contracts.append(c)
+	_contract_offers = []
+	_save_resources()
+	_update_contracts_label()
+	_contracts_event("state")
+	_shop_phase_continue()
+
+
+func _on_next_fight_pressed() -> void:
+	if is_instance_valid(_next_fight_btn):
+		_next_fight_btn.visible = false
+	# Rewards that need a choice (relic, fortify, free unit) are granted here
+	# if they were earned while shopping.
+	_run_reward_queue(_begin_next_turn)
+
+
+func _begin_next_turn() -> void:
+	_in_shop_phase = false
+	_turn += 1
+	_set_fight_for_turn()
+	_populate_enemy_board()
+	player_board.is_locked = false
+	fight_button.visible = true
+	_update_contracts_label()
+	_save_resources()
+	_sync_to_slot()
+	if _pending_node_is_boss:
+		_toast("Final battle: defeat the boss to win the run.")
+
+
+func _start_bounty_fight(c: Dictionary) -> void:
+	_in_shop_phase = false
+	_fight_is_bounty = true
+	var bonus := ContractSystem.SIDE_BOSS_DIFF_BONUS if c.get("goal") == "side_boss" \
+		else ContractSystem.BOUNTY_DIFF_BONUS
+	_combat_node_difficulty = ContractSystem.difficulty_for_turn(_turn) + bonus
+	_pending_node_is_boss = false
+	_populate_enemy_board(int(c.get("race", -1)))
+	player_board.is_locked = false
+	fight_button.visible = true
+	_update_contracts_label()
+	_toast("%s: extra fight!" % ContractSystem.title(c))
+
+
+# Resolves the bounty/side boss that was just fought. Loss damage is applied by
+# the normal combat-end code.
+func _finish_bounty(won: bool) -> void:
+	var fought: Dictionary = {}
+	for c: Dictionary in _contracts:
+		if c.get("state") == "ready":
+			fought = c
+			break
+	if fought.is_empty():
+		return
+	_contracts.erase(fought)
+	if won:
+		_complete_contract(fought)
+	else:
+		_toast("%s: defeated. No reward." % ContractSystem.title(fought))
+	_update_contracts_label()
+
+
+func _expire_contracts() -> void:
+	var expired: Array = _contracts.filter(func(c: Dictionary) -> bool:
+		return not ContractSystem.is_fight(c) and int(c.get("deadline", 0)) <= _turn)
+	for c: Dictionary in expired:
+		_contracts.erase(c)
+		_toast("Contract expired: %s" % ContractSystem.title(c))
+
+
+func _contracts_event(event: String, extra: Dictionary = {}) -> void:
+	if GameData.gauntlet_mode or _contracts.is_empty():
+		_update_contracts_label()
+		return
+	var info := _contract_snapshot()
+	info.merge(extra, true)
+	var completed: Array = []
+	for c: Dictionary in _contracts:
+		if not ContractSystem.is_fight(c) and ContractSystem.on_event(c, event, info):
+			completed.append(c)
+	for c: Dictionary in completed:
+		_contracts.erase(c)
+		_complete_contract(c)
+	_update_contracts_label()
+	_save_resources()
+
+
+# Gold / HP / rerolls are granted at once; rewards that need a choice wait in
+# the queue until the next shop phase or Next Fight press.
+func _complete_contract(c: Dictionary) -> void:
+	_toast("Contract complete: %s  —  %s" % [ContractSystem.title(c), ContractSystem.reward_text(c)])
+	for r: Dictionary in c.get("reward", []):
+		match r.get("type", ""):
+			"gold":
+				_gold += int(r.get("amount", 0))
+			"hp":
+				_player_hp = mini(_player_hp + int(r.get("amount", 0)), GameData.starting_player_hp + 20)
+			"reroll":
+				_bonus_rerolls += int(r.get("amount", 1))
+			_:
+				_reward_queue.append(r)
+	_save_resources()
+	_update_resource_bar()
+
+
+var _reward_then: Callable = Callable()
+
+func _run_reward_queue(then: Callable) -> void:
+	_reward_then = then
+	_reward_step()
+
+
+func _reward_step() -> void:
+	if _reward_queue.is_empty():
+		_reward_busy = false
+		_update_contracts_label()
+		var cb := _reward_then
+		_reward_then = Callable()
+		if cb.is_valid():
+			cb.call()
+		return
+	_reward_busy = true
+	var r: Dictionary = _reward_queue.pop_front()
+	_save_resources()
+	match r.get("type", ""):
+		"relic":
+			var picks := _pick_random_relics(3)
+			if picks.is_empty():
+				_gold += 15
+				_update_resource_bar()
+				_toast("All relics owned: +15 gold instead.")
+				_reward_step()
+			else:
+				_contract_screen.show_relic_selection(picks)
+		"fortify":
+			var targets: Array = player_board.units.filter(
+				func(u): return is_instance_valid(u) and u.data != null)
+			if targets.is_empty():
+				_gold += 10
+				_update_resource_bar()
+				_toast("No unit to fortify: +10 gold instead.")
+				_reward_step()
+			else:
+				_open_unit_target_picker(_apply_fortify, false, "Fortify a unit (+2 ATK, +4 HP)")
+		"free_unit":
+			_reward_discovery_pending = true
+			discovery_screen.activate_filtered(_player_tier, int(r.get("race", 0)), 0)
+		_:
+			_reward_step()
+
+
+func _apply_fortify(card: UnitCard) -> void:
+	if is_instance_valid(card):
+		card.current_attack += 2
+		card.current_health += 4
+		card.refresh_display()
+		_save_player_order()
+	_reward_step()
 
 
 func _on_relic_selected(relic_id: String) -> void:
@@ -3454,38 +3696,114 @@ func _on_relic_selected(relic_id: String) -> void:
 		_relics.append(relic_id)
 	_save_resources()
 	_update_relics_label()
-	# Let player shop before opening the map
-	if is_instance_valid(_go_to_map_btn):
-		_go_to_map_btn.visible = true
+	_reward_step()
 
 
-func _on_rest_completed(choice: String) -> void:
-	if choice == "heal":
-		_player_hp = mini(_player_hp + 15, GameData.starting_player_hp + 20)
+func _take_discovery_rerolls() -> int:
+	var extra := (1 if "extra_reroll" in _relics else 0) + _bonus_rerolls
+	if _bonus_rerolls > 0:
+		_bonus_rerolls = 0
 		_save_resources()
-		_update_resource_bar()
-	elif choice == "fortify":
-		# Give a random bench unit +2 ATK and +4 HP permanently
-		var bench_cards: Array = player_bench.units.filter(
-			func(c: UnitCard) -> bool: return is_instance_valid(c) and c.data != null)
-		if not bench_cards.is_empty():
-			var target: UnitCard = bench_cards[randi() % bench_cards.size()]
-			target.current_attack += 2
-			target.current_health += 4
-			target.refresh_display()
-			_save_bench()
-			print("Rest: %s fortified (+2 ATK, +4 HP)" % target.data.display_name)
-	_advance_map_row()
+	return extra
 
 
-func _on_event_completed(gold_delta: int, hp_delta: int) -> void:
-	if gold_delta != 0:
-		_gold = maxi(0, _gold + gold_delta)
-	if hp_delta != 0:
-		_player_hp = clampi(_player_hp + hp_delta, 1, 150)
-	_save_resources()
-	_update_resource_bar()
-	_advance_map_row()
+func _race_counts(datas: Array) -> Dictionary:
+	var counts: Dictionary = {}
+	for d in datas:
+		if d == null:
+			continue
+		counts[int(d.race)] = int(counts.get(int(d.race), 0)) + 1
+	return counts
+
+
+func _contract_snapshot() -> Dictionary:
+	var board_data: Array = []
+	for card: UnitCard in player_board.units:
+		if is_instance_valid(card) and card.data != null:
+			board_data.append(card.data)
+	var best_weapon := -1
+	var all_cards: Array = player_board.units + player_bench.units
+	if _support_card != null:
+		all_cards.append(_support_card)
+	for card in all_cards:
+		if not is_instance_valid(card):
+			continue
+		if card.equipped_weapon != null:
+			best_weapon = maxi(best_weapon, card.equipped_weapon.level)
+		if card.backpack_weapon != null:
+			best_weapon = maxi(best_weapon, card.backpack_weapon.level)
+	return {
+		"turn": _turn,
+		"faction_counts": _race_counts(board_data),
+		"active_factions": _active_factions,
+		"best_weapon": best_weapon,
+		"tier": _player_tier,
+		"gold": _gold,
+		"active": _contracts,
+	}
+
+
+func _update_contracts_label() -> void:
+	if not is_instance_valid(_contracts_label):
+		return
+	if GameData.gauntlet_mode:
+		_contracts_label.visible = false
+		return
+	var parts: Array = []
+	if _turn >= ContractSystem.BOSS_TURN:
+		parts.append("BOSS")
+	else:
+		parts.append("Turn %d / %d" % [_turn + 1, ContractSystem.BOSS_TURN + 1])
+	var snap := _contract_snapshot()
+	for c: Dictionary in _contracts:
+		parts.append(ContractSystem.progress_text(c, snap))
+	if not _reward_queue.is_empty():
+		parts.append("Reward waiting")
+	_contracts_label.text = "   ·   ".join(parts)
+
+
+func _normalize_contract(c: Dictionary) -> Dictionary:
+	for k in ["target", "deadline", "progress", "race", "accepted_turn"]:
+		if c.has(k):
+			c[k] = int(c[k])
+	var rewards: Array = []
+	for r in c.get("reward", []):
+		if r is Dictionary:
+			rewards.append(_normalize_reward(r))
+	c["reward"] = rewards
+	if c.get("state") == "ready":
+		c["state"] = "queued"   # reloading replays the regular fight first
+	return c
+
+
+func _normalize_reward(r: Dictionary) -> Dictionary:
+	for k in ["amount", "race"]:
+		if r.has(k):
+			r[k] = int(r[k])
+	return r
+
+
+func _toast(text: String) -> void:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var big := Platform.is_mobile() and Platform.is_portrait()
+	lbl.add_theme_font_size_override("font_size", 30 if big else 16)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	lbl.add_theme_constant_override("outline_size", 6)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.z_index = 60
+	var vw := get_viewport_rect().size.x
+	lbl.size = Vector2(vw * 0.8, 0)
+	lbl.position = Vector2(vw * 0.1, 90 + 44 * get_tree().get_nodes_in_group("contract_toast").size())
+	lbl.add_to_group("contract_toast")
+	add_child(lbl)
+	var tw := lbl.create_tween()
+	tw.tween_interval(2.4)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(lbl.queue_free)
 
 
 func _apply_relic_auras() -> void:
@@ -3506,7 +3824,7 @@ func _apply_relic_auras() -> void:
 
 
 func _pick_random_relics(count: int) -> Array:
-	var pool: Array = MapScreen.RELICS.filter(
+	var pool: Array = ContractSystem.RELICS.filter(
 		func(r: Dictionary) -> bool: return not (r.get("id", "") in _relics))
 	pool.shuffle()
 	return pool.slice(0, mini(count, pool.size()))
@@ -3519,38 +3837,11 @@ func _update_relics_label() -> void:
 		_relics_label.text = ""
 		return
 	var names: Array = _relics.map(func(rid: String) -> String:
-		for r: Dictionary in MapScreen.RELICS:
+		for r: Dictionary in ContractSystem.RELICS:
 			if r.get("id") == rid:
 				return r.get("name", rid)
 		return rid)
 	_relics_label.text = "Relics: " + "  |  ".join(names)
-
-
-func _save_map() -> void:
-	var file := FileAccess.open(MAP_SAVE_PATH, FileAccess.WRITE)
-	if file:
-		var save_data := _map_data.duplicate(true)
-		save_data["current_row"] = _map_current_row
-		file.store_string(JSON.stringify(save_data))
-		file.close()
-
-
-func _load_map() -> void:
-	if not FileAccess.file_exists(MAP_SAVE_PATH):
-		# Generate a new map for this run
-		var run_seed := int(Time.get_ticks_msec()) ^ (GameData.current_slot * 999983 + 1)
-		_map_data = _map_screen.generate_map(run_seed)
-		_map_current_row = 0
-		_save_map()
-		return
-	var file := FileAccess.open(MAP_SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var parsed = JSON.parse_string(file.get_as_text())
-	file.close()
-	if parsed is Dictionary:
-		_map_data = parsed
-		_map_current_row = int(parsed.get("current_row", 0))
 
 
 func _sync_to_slot() -> void:
@@ -3916,6 +4207,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if _myconid_shop != null and _myconid_shop.visible:
 		return
+	if _elf_shop != null and _elf_shop.visible:
+		return
+	if _covenant_shop != null and _covenant_shop.visible:
+		return
+	if _satyr_shop != null and _satyr_shop.visible:
+		return
 	if _spell_discovery_panel != null and _spell_discovery_panel.visible:
 		return
 
@@ -4147,8 +4444,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_fight_pressed() -> void:
 	print("=== FIGHT pressed ===")
 	_hide_unit_actions()
-	if is_instance_valid(_go_to_map_btn):
-		_go_to_map_btn.visible = false
+	if is_instance_valid(_next_fight_btn):
+		_next_fight_btn.visible = false
 	_board_template = []
 	for card: UnitCard in player_board.units:
 		if is_instance_valid(card) and card.data != null:
@@ -4199,6 +4496,8 @@ func _on_fight_pressed() -> void:
 	combat_manager.enemy_reaper_shop_data = _enemy_reaper_shop_data
 	combat_manager.enemy_myconid_shop_data = _enemy_myconid_shop_data
 	combat_manager.enemy_satyr_shop_data = _enemy_satyr_shop_data
+	if not GameData.gauntlet_mode:
+		_contracts_event("fight_start")
 	combat_manager.start_combat()
 
 

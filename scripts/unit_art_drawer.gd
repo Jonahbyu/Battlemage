@@ -1695,14 +1695,15 @@ func _draw_fury_kin(cx: float, cy: float, w: float, h: float, fg: Color, shd: Co
 # ── Weave Kin (diagonal lattice) ─────────────────────────────────────────────
 
 func _draw_weave_kin(cx: float, cy: float, w: float, h: float, fg: Color, shd: Color) -> void:
+	# ox range ±0.24w with 0.16w step, diagonal 0.24w → all endpoints stay within card bounds
 	for i in range(4):
-		var ox := -w*0.28 + float(i) * w*0.19
-		draw_line(Vector2(cx + ox + 1, cy - h*0.34 + 1), Vector2(cx + ox + w*0.38 + 1, cy + h*0.34 + 1), shd, w*0.07)
-		draw_line(Vector2(cx + ox, cy - h*0.34), Vector2(cx + ox + w*0.38, cy + h*0.34), fg, w*0.07)
+		var ox := -w*0.24 + float(i) * w*0.16
+		draw_line(Vector2(cx + ox + 1, cy - h*0.40 + 1), Vector2(cx + ox + w*0.24 + 1, cy + h*0.40 + 1), shd, w*0.07)
+		draw_line(Vector2(cx + ox, cy - h*0.40), Vector2(cx + ox + w*0.24, cy + h*0.40), fg, w*0.07)
 	for i in range(4):
-		var ox := w*0.28 - float(i) * w*0.19
-		draw_line(Vector2(cx + ox + 1, cy - h*0.34 + 1), Vector2(cx + ox - w*0.38 + 1, cy + h*0.34 + 1), shd, w*0.07)
-		draw_line(Vector2(cx + ox, cy - h*0.34), Vector2(cx + ox - w*0.38, cy + h*0.34), fg, w*0.07)
+		var ox := w*0.24 - float(i) * w*0.16
+		draw_line(Vector2(cx + ox + 1, cy - h*0.40 + 1), Vector2(cx + ox - w*0.24 + 1, cy + h*0.40 + 1), shd, w*0.07)
+		draw_line(Vector2(cx + ox, cy - h*0.40), Vector2(cx + ox - w*0.24, cy + h*0.40), fg, w*0.07)
 
 # ── Oath Binder (thick ring) ─────────────────────────────────────────────────
 

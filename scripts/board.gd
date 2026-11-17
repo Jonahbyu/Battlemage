@@ -27,6 +27,8 @@ func add_unit(card: UnitCard) -> void:
 	slots_container.add_child(card)
 	card.attack_direction = attack_dir
 	card.is_draggable = is_draggable
+	if UnitCard.fx_live:
+		card.play_spawn()
 
 
 func remove_unit(card: UnitCard) -> void:

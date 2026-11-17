@@ -45,6 +45,12 @@ var combat_bonus_damage: int = 0 # Commander aura etc.
 var combat_temp_atk: int = 0     # rolled back at end of combat (Overload Core etc.)
 var combat_temp_hp: int = 0
 
+# Combat FX: floating numbers only while a fight is running.
+const FX_HP_UNSET := -999999
+static var fx_live := false
+var _fx_hp: int = FX_HP_UNSET
+var _fx_atk: int = FX_HP_UNSET
+
 @onready var card_background: Panel = $CardBackground
 @onready var attack_label: Label = $AttackBadge/AttackLabel
 @onready var name_label: Label = $HoverNamePanel/NameLabel
@@ -230,6 +236,8 @@ func refresh_display() -> void:
 	name_label.text = data.display_name + "  " + "★".repeat(data.tier)
 	attack_label.text = str(current_attack)
 	health_label.text = str(current_health)
+	_fx_health_changed()
+	_fx_attack_changed()
 	taunt_border.visible = (current_keywords & KeywordFlags.Keyword.TAUNT) != 0
 	divine_shield_overlay.visible = (current_keywords & KeywordFlags.Keyword.DIVINE_SHIELD) != 0
 	radiant_border.visible = is_radiant
@@ -782,69 +790,316 @@ func _build_preview_body() -> String:
 	return "\n".join(lines)
 
 
-func flash_attack_toward(target_center: Vector2) -> void:
+func _center() -> Vector2:
+	return global_position + size * 0.5
+
+
+func fx_tint() -> Color:
+	return _get_race_bg_color().lightened(0.45)
+
+
+func _uses_gun() -> bool:
+	return data != null and data.race == RaceType.Race.HUMAN and equipped_weapon != null
+
+
+# Floating number + badge punch whenever health changes during combat.
+func _fx_health_changed() -> void:
+	if not fx_live:
+		_fx_hp = current_health
+		return
+	if _fx_hp == FX_HP_UNSET:
+		_fx_hp = current_health
+		return
+	var delta := current_health - _fx_hp
+	_fx_hp = current_health
+	if delta == 0 or not is_inside_tree() or not is_visible_in_tree():
+		return
+	if delta > 0 and current_health <= 0:
+		return
+	var top := global_position + Vector2(size.x * 0.5, size.y * 0.42)
+	if delta < 0:
+		var lethal := current_health <= 0
+		CombatFX.number(self, top, str(delta),
+			Color(1, 0.25, 0.2) if not lethal else Color(1, 0.85, 0.3), lethal or delta <= -8)
+	else:
+		CombatFX.number(self, top, "+%d" % delta, Color(0.45, 1, 0.5))
+	_punch(get_node_or_null("HealthBadge"))
+
+
+func _fx_attack_changed() -> void:
+	if fx_live and _fx_atk != FX_HP_UNSET and current_attack > _fx_atk and is_visible_in_tree():
+		_punch(get_node_or_null("AttackBadge"))
+	_fx_atk = current_attack
+
+
+func _punch(node: Control) -> void:
+	if node == null:
+		return
+	node.pivot_offset = node.size * 0.5
+	var tw := node.create_tween()
+	tw.tween_property(node, "scale", Vector2(1.45, 1.45), 0.07)
+	tw.tween_property(node, "scale", Vector2.ONE, 0.2) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+# ── Attack ───────────────────────────────────────────────────────────────────
+
+func flash_attack_toward(target_center: Vector2, target_card: UnitCard = null) -> void:
+	if _uses_gun():
+		await _shoot_toward(target_center, target_card)
+	else:
+		await _lunge_toward(target_center, target_card)
+
+
+func _lunge_toward(target_center: Vector2, target_card: UnitCard) -> void:
 	var container := get_parent()
 	var slot_idx := get_index()
 	var my_size := size
 	var start_gpos := global_position
-	var my_center_x := start_gpos.x + my_size.x * 0.5
+	var my_center := start_gpos + my_size * 0.5
 
-	var dx := target_center.x - my_center_x
-	var edge_offset_x: float = my_size.x * 0.5 * signf(dx)
-	var lunge_gpos := Vector2(
-		target_center.x - my_size.x * 0.5 - edge_offset_x,
-		target_center.y - my_size.y * 0.5
-	)
+	var to_target := target_center - my_center
+	var n := to_target.normalized() if to_target.length() > 1.0 else Vector2.UP
+	# Stop with our leading edge on the target's centre line, offset toward us.
+	var stop_dist := maxf(0.0, to_target.length() - my_size.y * 0.55)
+	var lunge_gpos := start_gpos + n * stop_dist
+	var windup_gpos := start_gpos - n * 14.0
+	var lean := clampf(n.x, -1.0, 1.0) * 0.18
 
 	var arena := get_tree().current_scene
 	container.remove_child(self)
 	arena.add_child(self)
 	size = my_size
 	global_position = start_gpos
+	pivot_offset = my_size * 0.5
 	z_index = 5
 
-	var tween := create_tween()
-	tween.tween_property(self, "global_position", lunge_gpos, 0.14) \
-		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	tween.tween_property(self, "global_position", start_gpos, 0.15) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	await tween.finished
+	# Wind-up: pull back and squash.
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "global_position", windup_gpos, 0.1) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector2(1.08, 0.9), 0.1)
+	tw.tween_property(self, "rotation", -lean, 0.1)
+	await tw.finished
 
+	# Strike: fast snap in, stretched along the motion.
+	tw = create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "global_position", lunge_gpos, 0.09) \
+		.set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
+	tw.tween_property(self, "scale", Vector2(0.92, 1.12), 0.09)
+	tw.tween_property(self, "rotation", lean, 0.09)
+	await tw.finished
+
+	# Impact + hit-stop.
+	var contact := target_center - n * (target_card.size.y * 0.35 if target_card != null else 30.0)
+	var heavy := current_attack >= 8
+	CombatFX.melee_impact(self, contact, n, fx_tint(), heavy)
+	CombatFX.shake(self, 9.0 if heavy else 5.0, 0.16)
+	if is_instance_valid(target_card):
+		target_card.play_impact(n, heavy)
+	scale = Vector2(1.1, 0.92)
+	await get_tree().create_timer(0.06).timeout
+
+	# Recover.
+	tw = create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "global_position", start_gpos, 0.2) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.2) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "rotation", 0.0, 0.18)
+	await tw.finished
+
+	rotation = 0.0
+	scale = Vector2.ONE
 	z_index = 0
 	arena.remove_child(self)
 	container.add_child(self)
 	container.move_child(self, slot_idx)
 
 
-func flash_hit(_lethal: bool) -> void:
+func _shoot_toward(target_center: Vector2, target_card: UnitCard) -> void:
+	var start_pos := position
 	pivot_offset = size * 0.5
-	highlight_overlay.color = Color(1, 0, 0, 0)
-	var t1 := create_tween()
-	t1.set_parallel(true)
-	t1.tween_property(highlight_overlay, "color", Color(1, 0, 0, 0.85), 0.07)
-	t1.tween_property(self, "scale", Vector2(0.82, 0.82), 0.07)
-	await t1.finished
-	var t2 := create_tween()
-	t2.set_parallel(true)
-	t2.tween_property(highlight_overlay, "color", Color(1, 0, 0, 0), 0.22)
-	t2.tween_property(self, "scale", Vector2(1.0, 1.0), 0.18)
-	await t2.finished
+	var my_center := _center()
+	var to_target := target_center - my_center
+	var n := to_target.normalized() if to_target.length() > 1.0 else Vector2.UP
+	var muzzle_pos := my_center + n * size.y * 0.45
+	var hit_pos := target_center - n * (target_card.size.y * 0.2 if target_card != null else 20.0)
+	z_index = 5
+
+	# Aim: small lean in, slight grow.
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "position", start_pos + n * 8.0, 0.1) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector2(1.06, 1.06), 0.1)
+	await tw.finished
+
+	var wt: int = equipped_weapon.weapon_type
+	var shots := 1
+	var spread := 0.0
+	var width := 3.0
+	var kick := 10.0
+	match wt:
+		WeaponData.WeaponType.SNIPER:
+			width = 5.0
+			kick = 16.0
+		WeaponData.WeaponType.SHOTGUN:
+			shots = 5
+			spread = 46.0
+			width = 2.5
+			kick = 18.0
+		WeaponData.WeaponType.MACHINE_GUN:
+			shots = clampi(maxi(combat_shots, equipped_weapon.get_total_shots()), 2, 8)
+			spread = 18.0
+			width = 2.5
+			kick = 5.0
+
+	var tracer_col := Color(1, 0.9, 0.5)
+	if wt == WeaponData.WeaponType.SNIPER:
+		tracer_col = Color(0.75, 0.95, 1.0)
+
+	var simultaneous := wt == WeaponData.WeaponType.SHOTGUN
+	var side := n.orthogonal()
+	for i in range(shots):
+		var off := side * randf_range(-spread, spread) if spread > 0.0 else Vector2.ZERO
+		var dest := hit_pos + off
+		CombatFX.muzzle(self, muzzle_pos, n)
+		CombatFX.tracer(self, muzzle_pos, dest, tracer_col, width,
+			0.22 if wt == WeaponData.WeaponType.SNIPER else 0.14)
+		CombatFX.shot_impact(self, dest, n)
+		# Recoil kick away from the target.
+		position = start_pos - n * kick
+		if not simultaneous:
+			CombatFX.shake(self, 3.0 if wt == WeaponData.WeaponType.MACHINE_GUN else 6.0, 0.08)
+			if i == 0 and is_instance_valid(target_card):
+				target_card.play_impact(n, wt == WeaponData.WeaponType.SNIPER)
+			var settle := create_tween()
+			settle.tween_property(self, "position", start_pos, 0.05)
+			await get_tree().create_timer(0.07 if wt == WeaponData.WeaponType.MACHINE_GUN else 0.05).timeout
+	if simultaneous:
+		CombatFX.shake(self, 8.0, 0.16)
+		if is_instance_valid(target_card):
+			target_card.play_impact(n, true)
+
+	await get_tree().create_timer(0.05).timeout
+	tw = create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "position", start_pos, 0.16) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.16)
+	await tw.finished
+	position = start_pos
+	scale = Vector2.ONE
+	z_index = 0
+	_resort_parent()
+
+
+# Knockback + white flash at the moment of contact. Fire-and-forget.
+func play_impact(dir: Vector2, heavy: bool = false) -> void:
+	if not is_inside_tree():
+		return
+	pivot_offset = size * 0.5
+	var start := position
+	var push := dir.normalized() * (16.0 if heavy else 10.0)
+	highlight_overlay.color = Color(1, 1, 1, 0.9)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "position", start + push, 0.05)
+	tw.tween_property(self, "rotation", dir.x * 0.08, 0.05)
+	tw.tween_property(highlight_overlay, "color", Color(1, 0.15, 0.1, 0.6), 0.08)
+	tw.chain().set_parallel(true)
+	tw.tween_property(self, "position", start, 0.22) \
+		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "rotation", 0.0, 0.2)
+	tw.chain().tween_callback(_resort_parent)
+
+
+# ── Damage / death ───────────────────────────────────────────────────────────
+
+func flash_hit(lethal: bool) -> void:
+	pivot_offset = size * 0.5
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(highlight_overlay, "color", Color(1, 0.1, 0.05, 0.8 if lethal else 0.65), 0.05)
+	tw.tween_property(self, "scale", Vector2(0.86, 0.86) if lethal else Vector2(0.9, 0.9), 0.06)
+	await tw.finished
+	tw = create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(highlight_overlay, "color", Color(1, 0, 0, 0), 0.2)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.2) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await tw.finished
 
 
 func apply_divine_shield_break() -> void:
 	current_keywords &= ~KeywordFlags.Keyword.DIVINE_SHIELD
 	divine_shield_overlay.visible = true
-	var tween := create_tween()
-	tween.tween_property(divine_shield_overlay, "modulate:a", 0.0, 0.25)
-	await tween.finished
+	CombatFX.shield_break(self, _center(), size.x * 0.75)
+	CombatFX.number(self, global_position + Vector2(size.x * 0.5, size.y * 0.42),
+		"BLOCK", Color(1, 0.9, 0.4))
+	pivot_offset = size * 0.5
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(divine_shield_overlay, "modulate:a", 0.0, 0.25)
+	tw.tween_property(self, "scale", Vector2(1.08, 1.08), 0.06)
+	tw.chain().tween_property(self, "scale", Vector2.ONE, 0.15)
+	await tw.finished
 	divine_shield_overlay.modulate.a = 1.0
 	divine_shield_overlay.visible = false
 
+
+func play_death_animation() -> void:
+	_fx_health_changed()
+	pivot_offset = size * 0.5
+	highlight_overlay.color = Color(1, 1, 1, 0.95)
+	var tw := create_tween()
+	tw.tween_property(self, "scale", Vector2(1.1, 1.1), 0.06)
+	await tw.finished
+	if is_inside_tree():
+		CombatFX.shatter(self, Rect2(global_position, size), _get_race_bg_color().lightened(0.25))
+		CombatFX.shake(self, 7.0, 0.18)
+	tw = create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "scale", Vector2(0.4, 0.4), 0.24) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.tween_property(self, "rotation", randf_range(-0.5, 0.5), 0.24)
+	tw.tween_property(self, "modulate:a", 0.0, 0.22)
+	await tw.finished
+
+
+# Summoned mid-combat: pop in with a ring.
+func play_spawn() -> void:
+	scale = Vector2(0.2, 0.2)
+	modulate.a = 0.0
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	pivot_offset = size * 0.5
+	CombatFX.ring(self, _center(), fx_tint(), size.x * 0.7, 5.0, 0.35)
+	CombatFX.sparkle_up(self, Rect2(global_position, size), fx_tint(), 10)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.28) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "modulate:a", 1.0, 0.12)
+
+
+# ── Buff flashes ─────────────────────────────────────────────────────────────
 
 func flash_triple_spawn() -> void:
 	pivot_offset = size * 0.5
 	scale = Vector2.ZERO
 	highlight_overlay.color = Color(1, 0.85, 0, 0)
+	await get_tree().process_frame
+	if is_inside_tree():
+		pivot_offset = size * 0.5
+		CombatFX.ring(self, _center(), Color(1, 0.88, 0.3), size.x, 7.0, 0.5)
+		CombatFX.burst(self, _center(), [Color(1, 0.95, 0.5), Color(1, 0.8, 0.2), Color.WHITE],
+			24, 360.0, 4.0, 0.6, 300.0)
 	var t1 := create_tween()
 	t1.set_parallel(true)
 	t1.tween_property(self, "scale", Vector2.ONE, 0.3) \
@@ -856,17 +1111,11 @@ func flash_triple_spawn() -> void:
 	await t2.finished
 
 
-func play_death_animation() -> void:
-	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(self, "scale", Vector2.ZERO, 0.35)
-	tween.tween_property(self, "modulate:a", 0.0, 0.35)
-	await tween.finished
-
-
 func flash_surge_source() -> void:
 	pivot_offset = size * 0.5
 	highlight_overlay.color = Color(0.4, 0.85, 1, 0)
+	if is_inside_tree():
+		CombatFX.ring(self, _center(), Color(0.45, 0.85, 1), size.x * 0.8, 4.0, 0.4)
 	var t1 := create_tween()
 	t1.set_parallel(true)
 	t1.tween_property(highlight_overlay, "color", Color(0.4, 0.85, 1, 0.75), 0.1)
@@ -882,6 +1131,8 @@ func flash_surge_source() -> void:
 func flash_surge_buff() -> void:
 	pivot_offset = size * 0.5
 	highlight_overlay.color = Color(1, 0.85, 0, 0)
+	if is_inside_tree():
+		CombatFX.sparkle_up(self, Rect2(global_position, size), Color(1, 0.85, 0.3), 14)
 	var t1 := create_tween()
 	t1.set_parallel(true)
 	t1.tween_property(highlight_overlay, "color", Color(1, 0.85, 0, 0.8), 0.1)
@@ -892,3 +1143,9 @@ func flash_surge_buff() -> void:
 	t2.tween_property(highlight_overlay, "color", Color(1, 0.85, 0, 0), 0.45)
 	t2.tween_property(self, "scale", Vector2.ONE, 0.3)
 	await t2.finished
+
+
+func _resort_parent() -> void:
+	var p := get_parent()
+	if p is Container:
+		(p as Container).queue_sort()
