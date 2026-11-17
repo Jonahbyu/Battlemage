@@ -66,7 +66,8 @@ custom_minimum_size = Vector2(0, 44)
 [node name="ResourceBar" type="HFlowContainer" parent="RootHBox/MainLayout"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 6
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 6
 
 [node name="GoldLabel" type="Label" parent="RootHBox/MainLayout/ResourceBar"]
 layout_mode = 2

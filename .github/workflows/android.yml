@@ -1,0 +1,125 @@
+name: Android build
+
+# Builds Battlemage as a signed Android APK and publishes it as a GitHub Release.
+# The installed game checks the latest release on launch and offers the update
+# (scripts/updater.gd).
+#  - push to master: releases if game files changed (docs/ and markdown are ignored)
+#  - pull request: builds with a throwaway key and uploads the APK as an artifact (no release)
+#  - manual run: always releases
+# Signing uses the repository secrets RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD and
+# RELEASE_KEY_ALIAS. Godot signs with one password, so the key password must equal the store's.
+
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['docs/**', '**.md', 'units.txt']
+  pull_request:
+    paths-ignore: ['docs/**', '**.md', 'units.txt']
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.event_name }}-${{ github.event.pull_request.number || 'master' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GODOT_VERSION: '4.7'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      ANDROID_BUILD: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-ci
+          key: godot-${{ env.GODOT_VERSION }}-linux-android
+
+      - name: Download Godot and the Android export templates
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-ci && cd ~/godot-ci
+          REL=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -fsSL --retry 4 -o godot.zip "$REL/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL --retry 4 -o templates.tpz "$REL/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q godot.zip && mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot && chmod +x godot
+          unzip -q templates.tpz templates/android_release.apk templates/android_debug.apk templates/version.txt
+          rm godot.zip templates.tpz
+
+      - name: Install Godot
+        run: |
+          T=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$T" && cp ~/godot-ci/templates/* "$T/"
+          mkdir -p ~/.config/godot
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' \
+            "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
+          echo "GODOT=$HOME/godot-ci/godot" >> "$GITHUB_ENV"
+
+      - name: Build signed APK
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/ci.jks" -alias ci -keyalg RSA -keysize 2048 \
+              -validity 30 -storepass ci-build -keypass ci-build -dname "CN=Battlemage CI"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/ci.jks"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_USER=ci
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=ci-build
+          else
+            if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+              echo "RELEASE_KEYSTORE_BASE64 secret is missing" >&2
+              exit 1
+            fi
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/release.jks"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_USER="$RELEASE_KEY_ALIAS"
+            export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$RELEASE_KEYSTORE_PASSWORD"
+          fi
+          sh tools/build_android.sh "$RUNNER_TEMP/battlemage.apk"
+
+      - name: Check the APK
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$RUNNER_TEMP/battlemage.apk" | grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|launchable-activity|native-code)"
+          "$BT/aapt2" dump badging "$RUNNER_TEMP/battlemage.apk" | grep -q "versionCode='$ANDROID_BUILD'" \
+            || { echo "versionCode is not $ANDROID_BUILD" >&2; exit 1; }
+          "$BT/apksigner" verify --print-certs "$RUNNER_TEMP/battlemage.apk" | head -3
+
+      - name: Upload APK (pull request)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: battlemage-apk
+          path: ${{ runner.temp }}/battlemage.apk
+
+      - name: Publish GitHub Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Same asset name every release, so
+          # https://github.com/Jonahbyu/Battlemage/releases/latest/download/battlemage.apk
+          # always downloads the newest build.
+          tag="android-${ANDROID_BUILD}"
+          cp "$RUNNER_TEMP/battlemage.apk" battlemage.apk
+          notes="$(git log -1 --pretty=%B | grep -v '^Co-Authored-By:')
+
+          **Install:** on an Android phone, tap battlemage.apk below, then open it and allow the install."
+          gh release create "$tag" battlemage.apk \
+            --title "Battlemage (Android build ${ANDROID_BUILD})" \
+            --notes "$notes" \
+            --target "$GITHUB_SHA"

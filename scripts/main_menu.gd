@@ -5,6 +5,8 @@ var _m: bool = false  # true when running on mobile
 func _ready() -> void:
 	_m = Platform.is_mobile()
 	_build_ui()
+	# Phone: scale text and touch targets the same way the shops do.
+	Platform.adapt_overlay(self)
 
 
 func _build_ui() -> void:
@@ -446,6 +448,19 @@ func _on_gauntlet_pressed() -> void:
 
 func _on_manual_pressed() -> void:
 	UnitManual.open(self)
+
+
+# Android back button (see Platform._on_back). The confirm and history pop-ups
+# are pairs of z_index 200/201 siblings: close them; with none open, exit.
+func handle_back() -> bool:
+	var popups := get_children().filter(func(c):
+		return c is CanvasItem and (c as CanvasItem).z_index >= 200 and not c.is_queued_for_deletion())
+	if popups.is_empty():
+		get_tree().quit()
+		return true
+	for c in popups:
+		c.queue_free()
+	return true
 
 
 func _on_history_pressed() -> void:

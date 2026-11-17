@@ -232,6 +232,14 @@ var _detail_root: Control
 var _selected_border: Panel = null
 var _faction_buttons: Array[Button] = []
 var _shop_callbacks: Dictionary = {}
+# Portrait phone: factions become a scrolling row on top and the details sit
+# under the grid, since three columns can't fit a 900-wide screen.
+var _portrait := false
+# Font multiplier applied by Platform.adapt_overlay on phones; code that sets
+# font sizes after the first build has to apply it too.
+var _fscale := 1.0
+# Unit tiles are drawn at desktop size and scaled up as a whole on a phone.
+const _PORTRAIT_TILE_SCALE := 1.9
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -240,16 +248,20 @@ static func open(parent: Control, shop_callbacks: Dictionary = {}) -> void:
 	m._shop_callbacks = shop_callbacks
 	m.set_anchors_preset(Control.PRESET_FULL_RECT)
 	m.z_index = 200
+	m.add_to_group(Platform.BACK_CLOSABLE)
 	parent.add_child(m)
 
 
 func _ready() -> void:
 	_build()
+	Platform.adapt_overlay(self)
 
 
 # ── UI construction ───────────────────────────────────────────────────────────
 
 func _build() -> void:
+	_portrait = Platform.is_mobile() and Platform.is_portrait()
+	_fscale = Platform.overlay_scale() if Platform.is_mobile() else 1.0
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.82)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -300,13 +312,13 @@ func _build() -> void:
 	root_vbox.add_child(HSeparator.new())
 
 	# 3-column body
-	var body := HBoxContainer.new()
+	var body: BoxContainer = VBoxContainer.new() if _portrait else HBoxContainer.new()
 	body.add_theme_constant_override("separation", 0)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root_vbox.add_child(body)
 
 	body.add_child(_build_faction_nav())
-	body.add_child(VSeparator.new())
+	body.add_child(HSeparator.new() if _portrait else VSeparator.new())
 
 	_grid_scroll = ScrollContainer.new()
 	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -319,11 +331,15 @@ func _build() -> void:
 	_grid_content.add_theme_constant_override("separation", 6)
 	_grid_scroll.add_child(_grid_content)
 
-	body.add_child(VSeparator.new())
+	body.add_child(HSeparator.new() if _portrait else VSeparator.new())
 
 	# Detail panel
 	var detail_panel := Panel.new()
-	detail_panel.custom_minimum_size = Vector2(260, 0)
+	if _portrait:
+		detail_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		detail_panel.size_flags_stretch_ratio = 0.8
+	else:
+		detail_panel.custom_minimum_size = Vector2(260, 0)
 	var dps := StyleBoxFlat.new()
 	dps.bg_color = Color(0.09, 0.10, 0.15)
 	detail_panel.add_theme_stylebox_override("panel", dps)
@@ -342,10 +358,13 @@ func _build() -> void:
 
 func _build_faction_nav() -> Control:
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(118, 0)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	if _portrait:
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	else:
+		scroll.custom_minimum_size = Vector2(118, 0)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 
-	var vbox := VBoxContainer.new()
+	var vbox: BoxContainer = HBoxContainer.new() if _portrait else VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 3)
 	var mg := MarginContainer.new()
 	for s in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
@@ -394,7 +413,10 @@ func _restyle_faction_buttons() -> void:
 		btn.add_theme_stylebox_override("hover",  hover_sty)
 		btn.add_theme_stylebox_override("pressed", normal_sty)
 		btn.add_theme_color_override("font_color", Color(1, 1, 1) if is_active else Color(0.72, 0.72, 0.82))
-		btn.add_theme_font_size_override("font_size", 13)
+		# First styling happens before Platform.adapt_overlay scales the button;
+		# later restyles must re-apply that scale themselves.
+		var fs := 13.0 * (_fscale if btn.has_meta("_mobile_adapted") else 1.0)
+		btn.add_theme_font_size_override("font_size", int(round(fs)))
 
 
 # ── Grid ──────────────────────────────────────────────────────────────────────
@@ -451,15 +473,38 @@ func _refresh_grid() -> void:
 		var row_mg := MarginContainer.new()
 		for s in ["margin_left", "margin_bottom"]:
 			row_mg.add_theme_constant_override(s, 8)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
+		# Flow, so a long tier wraps instead of running off a narrow screen.
+		var row := HFlowContainer.new()
+		row.add_theme_constant_override("h_separation", 6)
+		row.add_theme_constant_override("v_separation", 6)
 		row_mg.add_child(row)
 		_grid_content.add_child(row_mg)
 
 		for ud: UnitData in tier_units:
-			row.add_child(_build_unit_entry(ud))
+			row.add_child(_scaled_entry(_build_unit_entry(ud)))
 
 	_grid_scroll.scroll_vertical = 0
+
+
+# On a portrait phone, scale a whole tile up uniformly. Platform's per-control
+# scaling would stretch the fixed-size tile and overflow its badges, so the tile
+# is marked as already adapted.
+func _scaled_entry(tile: Control) -> Control:
+	if not _portrait:
+		return tile
+	_mark_adapted(tile)
+	var holder := Control.new()
+	holder.set_meta("_mobile_adapted", true)
+	holder.custom_minimum_size = tile.custom_minimum_size * _PORTRAIT_TILE_SCALE
+	tile.scale = Vector2.ONE * _PORTRAIT_TILE_SCALE
+	holder.add_child(tile)
+	return holder
+
+
+func _mark_adapted(n: Node) -> void:
+	n.set_meta("_mobile_adapted", true)
+	for c in n.get_children():
+		_mark_adapted(c)
 
 
 func _build_unit_entry(ud: UnitData) -> Control:

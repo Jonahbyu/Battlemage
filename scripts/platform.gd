@@ -13,6 +13,32 @@ const _SAVE_PATH := "user://ui_mode.json"
 const _MOBILE_PORTRAIT_BASE := Vector2i(900, 1600)
 var _desktop_base := Vector2i.ZERO
 
+# ── Android back button ───────────────────────────────────────────────────────
+# quit_on_go_back is off in project.godot, so the back button lands here instead
+# of killing the app. Order: a node in BACK_CLOSABLE (e.g. the Unit Manual) is
+# freed; otherwise the current scene's handle_back() gets a chance; the main
+# menu (no handle_back) quits. A scene whose handle_back() returns false simply
+# ignores the press, so a stray back tap mid-run never throws you out.
+const BACK_CLOSABLE := "back_closable"
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_on_back()
+
+func _on_back() -> void:
+	var tree := get_tree()
+	var closable := tree.get_nodes_in_group(BACK_CLOSABLE)
+	for i in range(closable.size() - 1, -1, -1):
+		var n: Node = closable[i]
+		if is_instance_valid(n) and not n.is_queued_for_deletion() 				and (not (n is CanvasItem) or (n as CanvasItem).is_visible_in_tree()):
+			n.queue_free()
+			return
+	var scene := tree.current_scene
+	if scene != null and scene.has_method("handle_back"):
+		scene.call("handle_back")
+		return
+	tree.quit()
+
 func _ready() -> void:
 	if FileAccess.file_exists(_SAVE_PATH):
 		var f := FileAccess.open(_SAVE_PATH, FileAccess.READ)

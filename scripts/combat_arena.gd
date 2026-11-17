@@ -744,6 +744,29 @@ func _on_reset_pressed() -> void:
 	_return_to_menu()
 
 
+# Android back button (see Platform._on_back). Closes the topmost panel and
+# returns true; with nothing open it does nothing and returns false.
+func handle_back() -> bool:
+	if _unit_actions_panel != null and _unit_actions_panel.visible:
+		_hide_unit_actions()
+		return true
+	for shop in [_goblin_shop, _elf_shop, _covenant_shop, _aztec_shop, _construct_shop,
+			_reaper_shop, _myconid_shop, _satyr_shop, _human_shop, _mage_shop]:
+		if shop != null and shop.visible:
+			shop.close()
+			return true
+	if _spell_shop != null and _spell_shop.visible:
+		_spell_shop._on_close_pressed()
+		return true
+	if _all_shops_panel != null and _all_shops_panel.visible:
+		_close_all_shops_panel()
+		return true
+	if combat_log.visible:
+		_on_toggle_log_pressed()
+		return true
+	return false
+
+
 func _on_toggle_log_pressed() -> void:
 	combat_log.visible = not combat_log.visible
 	toggle_log_button.text = "Show Log" if not combat_log.visible else "Hide Log"
