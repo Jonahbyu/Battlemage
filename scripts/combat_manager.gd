@@ -156,6 +156,12 @@ func start_combat() -> void:
 	else:
 		player_attacks_next = randi() % 2 == 0
 	_log("=== Combat Start! ===")
+	for card in player_board.units + enemy_board.units:
+		if is_instance_valid(card):
+			card._fx_hp = card.current_health
+			card._fx_atk = card.current_attack
+	UnitCard.fx_live = true
+	CombatFX.banner(self, "FIGHT!", Color(1, 0.88, 0.45))
 	_init_combat_weapons(player_board)
 	_init_combat_weapons(enemy_board)
 	_apply_pack_leader_aura(player_board)
@@ -258,8 +264,8 @@ func _process_next_attack() -> void:
 
 	_log("%s attacks %s!" % [attacker.data.display_name, defender.data.display_name])
 	defender.show_targeted(true)
-	await get_tree().create_timer(0.22).timeout
-	await attacker.flash_attack_toward(defender.global_position + defender.size * 0.5)
+	await get_tree().create_timer(0.14).timeout
+	await attacker.flash_attack_toward(defender.global_position + defender.size * 0.5, defender)
 	defender.show_targeted(false)
 	# Covenant pre-attack: Chain Hunter bonds target before attacking (Radiant: twice)
 	if is_instance_valid(attacker) and not attacker.is_dead \
@@ -303,7 +309,7 @@ func _process_next_attack() -> void:
 			_log("%s strikes again (Windfury)!" % attacker.data.display_name)
 			second_target.show_targeted(true)
 			await get_tree().create_timer(0.15).timeout
-			await attacker.flash_attack_toward(second_target.global_position + second_target.size * 0.5)
+			await attacker.flash_attack_toward(second_target.global_position + second_target.size * 0.5, second_target)
 			second_target.show_targeted(false)
 			await _resolve_attack(attacker, second_target, attacker_board, defender_board)
 			attacker.refresh_display()
@@ -1650,8 +1656,13 @@ func _spawn_goblin_peon(board: Board, insert_idx: int = -1, chain: bool = false,
 
 # ── End ───────────────────────────────────────────────────────────────────────
 
+func _exit_tree() -> void:
+	UnitCard.fx_live = false
+
+
 func _end_combat() -> void:
 	is_running = false
+	UnitCard.fx_live = false
 	var p_alive := player_board.has_living_units()
 	var e_alive := enemy_board.has_living_units()
 	var result: String
@@ -1670,8 +1681,26 @@ func _end_combat() -> void:
 		_log("Enemy survivors deal %d damage!" % damage)
 	result_banner.text = result
 	result_banner.visible = true
+	_pop_result_banner(result)
 	continue_button.visible = true
 	combat_ended.emit(damage)
+
+
+func _pop_result_banner(result: String) -> void:
+	result_banner.pivot_offset = result_banner.size * 0.5
+	result_banner.scale = Vector2(2.2, 2.2)
+	result_banner.modulate.a = 0.0
+	var tw := result_banner.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(result_banner, "scale", Vector2.ONE, 0.22) 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(result_banner, "modulate:a", 1.0, 0.12)
+	var center := result_banner.global_position + result_banner.size * 0.5
+	if result == "Victory!":
+		CombatFX.burst(self, center, [Color(1, 0.9, 0.4), Color(1, 1, 0.8), Color(0.5, 1, 0.6)],
+			40, 520.0, 5.0, 1.0, 500.0, Vector2.ZERO, TAU, true)
+		CombatFX.ring(self, center, Color(1, 0.9, 0.5), 220.0, 8.0, 0.6)
+	elif result == "Defeat":
+		CombatFX.shake(self, 10.0, 0.3)
 
 
 func _log(text: String) -> void:
@@ -2836,7 +2865,7 @@ func _trigger_berserk(card: UnitCard, dead_partner: UnitCard) -> void:
 
 	berserk_target.show_targeted(true)
 	await get_tree().create_timer(0.1).timeout
-	await card.flash_attack_toward(berserk_target.global_position + berserk_target.size * 0.5)
+	await card.flash_attack_toward(berserk_target.global_position + berserk_target.size * 0.5, berserk_target)
 	berserk_target.show_targeted(false)
 	await _resolve_attack(card, berserk_target, card_board, opp_board)
 	card.refresh_display()
@@ -2888,7 +2917,7 @@ func _rite_spawner_covenantling_attack(
 			continue
 		target.show_targeted(true)
 		await get_tree().create_timer(0.12).timeout
-		await token.flash_attack_toward(target.global_position + target.size * 0.5)
+		await token.flash_attack_toward(target.global_position + target.size * 0.5, target)
 		target.show_targeted(false)
 		await _resolve_attack(token, target, attacker_board, defender_board)
 		token.refresh_display()
