@@ -8,10 +8,10 @@ signal offer_chosen(index: int)      # -1 = skipped
 signal relic_selected(relic_id: String)
 
 var _board_panel: VBoxContainer
-var _board_cards: HBoxContainer
+var _board_cards: BoxContainer
 var _board_sub: Label
 var _relic_panel: VBoxContainer
-var _relic_cards: HBoxContainer
+var _relic_cards: BoxContainer
 
 
 func _ready() -> void:
@@ -27,6 +27,17 @@ func _ready() -> void:
 	_build_relic_panel()
 	Platform.adapt_overlay(self)
 	visible = false
+
+
+func _inset(c: Control) -> void:
+	c.offset_left = 28
+	c.offset_right = -28
+	c.offset_top = 24
+	c.offset_bottom = -24
+
+
+func _stacked() -> bool:
+	return Platform.is_mobile() and Platform.is_portrait()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -59,6 +70,8 @@ func _show(which: String) -> void:
 func _build_board_panel() -> void:
 	_board_panel = VBoxContainer.new()
 	_board_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if _stacked():
+		_inset(_board_panel)
 	_board_panel.add_theme_constant_override("separation", 14)
 	add_child(_board_panel)
 
@@ -79,8 +92,9 @@ func _build_board_panel() -> void:
 	top_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_board_panel.add_child(top_spacer)
 
-	_board_cards = HBoxContainer.new()
-	_board_cards.set_meta("mobile_stack", true)
+	# Stacked on portrait phones. Built that way directly: Platform's
+	# mobile_stack swap would free this box and leave the reference dangling.
+	_board_cards = VBoxContainer.new() if _stacked() else HBoxContainer.new()
 	_board_cards.alignment = BoxContainer.ALIGNMENT_CENTER
 	_board_cards.add_theme_constant_override("separation", 18)
 	_board_panel.add_child(_board_cards)
@@ -105,6 +119,10 @@ func _make_offer_card(c: Dictionary, index: int) -> Button:
 	var col: Color = ContractSystem.TIER_COLORS.get(c.get("tier", "small"), Color.WHITE)
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(230, 210)
+	if _stacked():
+		# Full-width rows sized to their text, so three fit with Skip below.
+		btn.custom_minimum_size = Vector2(0, 112)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = Color(col.r * 0.12, col.g * 0.12, col.b * 0.12)
@@ -142,6 +160,16 @@ func _make_offer_card(c: Dictionary, index: int) -> Button:
 	reward.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vb.add_child(reward)
 
+	# A Button doesn't size itself to child controls; keep it as tall as its text.
+	# Measured only once the card has its real width: wrapped text measured at
+	# zero width is one word per line and would make the card huge.
+	var base_h := btn.custom_minimum_size.y
+	var grow := func():
+		if is_instance_valid(btn) and is_instance_valid(margin) and btn.size.x > 100.0:
+			btn.custom_minimum_size.y = maxf(base_h, margin.get_combined_minimum_size().y)
+	margin.minimum_size_changed.connect(grow)
+	btn.resized.connect(grow)
+
 	btn.pressed.connect(func():
 		visible = false
 		offer_chosen.emit(index))
@@ -163,6 +191,8 @@ func _label(text: String, size: int, color: Color) -> Label:
 func _build_relic_panel() -> void:
 	_relic_panel = VBoxContainer.new()
 	_relic_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if _stacked():
+		_inset(_relic_panel)
 	_relic_panel.add_theme_constant_override("separation", 18)
 	_relic_panel.visible = false
 	add_child(_relic_panel)
@@ -186,8 +216,9 @@ func _build_relic_panel() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_relic_panel.add_child(spacer)
 
-	_relic_cards = HBoxContainer.new()
-	_relic_cards.set_meta("mobile_stack", true)
+	# Stacked on portrait phones. Built that way directly: Platform's
+	# mobile_stack swap would free this box and leave the reference dangling.
+	_relic_cards = VBoxContainer.new() if _stacked() else HBoxContainer.new()
 	_relic_cards.alignment = BoxContainer.ALIGNMENT_CENTER
 	_relic_cards.add_theme_constant_override("separation", 22)
 	_relic_panel.add_child(_relic_cards)
@@ -200,6 +231,9 @@ func _build_relic_panel() -> void:
 func _make_relic_button(relic: Dictionary) -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(210, 140)
+	if _stacked():
+		btn.custom_minimum_size = Vector2(0, 100)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var vb := VBoxContainer.new()
 	vb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

@@ -375,6 +375,10 @@ func _on_node_added(n: Node) -> void:
 		_skin_arena.call_deferred(n)
 	if n is Button and not (n is CheckBox or n is CheckButton):
 		var b := n as Button
+		# A button moved to a new parent is "added" again; hook it up only once.
+		if b.has_meta("_ui_motion"):
+			return
+		b.set_meta("_ui_motion", true)
 		b.mouse_entered.connect(_btn_tween.bind(b, 1.04))
 		b.mouse_exited.connect(_btn_tween.bind(b, 1.0))
 		b.button_down.connect(_btn_tween.bind(b, 0.96))

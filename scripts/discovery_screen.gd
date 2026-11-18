@@ -213,6 +213,12 @@ const TAP_SLOP := 16.0
 func _ready() -> void:
 	_style_screen()
 	_fit_to_screen()
+	# Phones: no scrolling, and long titles wrap instead of widening the screen.
+	Platform.no_scroll(scroll)
+	if Platform.is_mobile():
+		var t := get_node_or_null("Margin/CenterVBox/TitleLabel") as Label
+		if t != null:
+			t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	get_viewport().size_changed.connect(_fit_to_screen)
 
 
@@ -331,8 +337,10 @@ func _style_screen() -> void:
 	title.text = "CHOOSE  A  UNIT"
 	UITheme.style_title(title, 40)
 	var vb: VBoxContainer = $Margin/CenterVBox
-	var orn := UITheme.ornament(520, Color(UITheme.GOLD_DIM, 0.9))
-	orn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# Fixed 520px is wider than the picker on a portrait phone; stretch there.
+	var narrow := Platform.is_mobile() and Platform.is_portrait()
+	var orn := UITheme.ornament(0 if narrow else 520, Color(UITheme.GOLD_DIM, 0.9))
+	orn.size_flags_horizontal = Control.SIZE_EXPAND_FILL if narrow else Control.SIZE_SHRINK_CENTER
 	vb.add_child(orn)
 	vb.move_child(orn, title.get_index() + 1)
 	var bd := get_node_or_null("Backdrop") as Panel

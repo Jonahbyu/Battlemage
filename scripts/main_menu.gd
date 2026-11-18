@@ -49,6 +49,10 @@ func _build_ui() -> void:
 	title.text = "BATTLEMAGE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UITheme.style_title(title, 76 if _m else 88)
+	if _m:
+		# One line on a phone; skip the overlay text boost that wrapped it.
+		title.set_meta("_mobile_adapted", true)
+		title.add_theme_font_size_override("font_size", 104)
 	inner.add_child(title)
 
 	var sub := Label.new()
@@ -86,26 +90,32 @@ func _build_ui() -> void:
 	inner.add_child(UITheme.ornament(0, Color(UITheme.GOLD_DIM, 0.6)))
 
 	# ── History & Exit ──────────────────────────────────────────────────────────
-	var bottom: BoxContainer = VBoxContainer.new() if _m else HBoxContainer.new()
+	var bottom := HBoxContainer.new()
 	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
 	bottom.add_theme_constant_override("separation", 12 if _m else 22)
 	inner.add_child(bottom)
 
 	var hist_btn := Button.new()
-	hist_btn.text = "Run History"
-	hist_btn.custom_minimum_size = Vector2(220, 56 if _m else 46)
+	hist_btn.text = "History" if _m else "Run History"
+	hist_btn.custom_minimum_size = Vector2(0 if _m else 220, 56 if _m else 46)
+	if _m:
+		hist_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hist_btn.pressed.connect(_on_history_pressed)
 	bottom.add_child(hist_btn)
 
 	var manual_btn := Button.new()
 	manual_btn.text = "Unit Manual"
-	manual_btn.custom_minimum_size = Vector2(220, 56 if _m else 46)
+	manual_btn.custom_minimum_size = Vector2(0 if _m else 220, 56 if _m else 46)
+	if _m:
+		manual_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	manual_btn.pressed.connect(_on_manual_pressed)
 	bottom.add_child(manual_btn)
 
 	var exit_btn := Button.new()
-	exit_btn.text = "Exit Game"
-	exit_btn.custom_minimum_size = Vector2(220, 56 if _m else 46)
+	exit_btn.text = "Exit" if _m else "Exit Game"
+	exit_btn.custom_minimum_size = Vector2(0 if _m else 220, 56 if _m else 46)
+	if _m:
+		exit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	exit_btn.pressed.connect(_on_exit_pressed)
 	bottom.add_child(exit_btn)
 
@@ -461,6 +471,11 @@ func _hsep() -> HSeparator:
 
 
 func _ui_mode_label() -> String:
+	if _m:
+		match Platform.override_mode:
+			1:  return "UI: Mobile · tap to change"
+			-1: return "UI: Desktop · tap to change"
+			_:  return "UI: Auto · tap to change"
 	match Platform.override_mode:
 		1:  return "UI Mode: Force Mobile  (click to → Desktop)"
 		-1: return "UI Mode: Force Desktop  (click to → Auto)"
@@ -537,7 +552,9 @@ func _show_confirm(message: String, on_confirm: Callable) -> void:
 	add_child(overlay)
 
 	var box := PanelContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
 	box.z_index = 201
 	add_child(box)
 
@@ -587,8 +604,18 @@ func _show_history_overlay() -> void:
 	add_child(overlay)
 
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.custom_minimum_size = Vector2(560, 480)
+	if _m:
+		# Phone: fill the screen inside a margin; pages instead of a scroll list.
+		panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		panel.offset_left = 24
+		panel.offset_right = -24
+		panel.offset_top = 80
+		panel.offset_bottom = -80
+	else:
+		panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+		panel.custom_minimum_size = Vector2(560, 480)
 	panel.z_index = 201
 	add_child(panel)
 
@@ -608,38 +635,76 @@ func _show_history_overlay() -> void:
 	vb.add_child(title)
 	vb.add_child(UITheme.ornament())
 
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 340)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vb.add_child(scroll)
-
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 4)
-	scroll.add_child(list)
-
 	var history := GameData.get_history()
-	if history.is_empty():
-		var empty := Label.new()
-		empty.text = "No completed runs yet."
-		empty.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
-		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		list.add_child(empty)
-	else:
-		for i in range(history.size()):
+	var per_page := 5 if _m else history.size()
+	var pages := maxi(1, ceili(float(history.size()) / maxf(1.0, per_page)))
+	var page := [0]
+	var page_lbl := Label.new()
+	var fill := func():
+		for c in list.get_children():
+			c.queue_free()
+		if history.is_empty():
+			var empty := Label.new()
+			empty.text = "No completed runs yet."
+			empty.add_theme_color_override("font_color", UITheme.TEXT_FAINT)
+			empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			list.add_child(empty)
+			return
+		var first: int = page[0] * per_page
+		var last: int = mini(history.size(), first + per_page)
+		for i in range(first, last):
 			var entry: Dictionary = history[i]
 			var lbl := Label.new()
 			var result: String = entry.get("result", "?")
 			var battles: int   = int(entry.get("battles", 0))
 			var date: String   = entry.get("date", "")
 			var units: String  = ", ".join(entry.get("unit_names", []))
-			lbl.text = "#%d  %s  —  %d battles  [%s]\n  %s" % [
+			lbl.text = "#%d  %s  —  %d battles  [%s]
+  %s" % [
 				i + 1, result.to_upper(), battles, date, units]
 			lbl.add_theme_font_size_override("font_size", 15)
 			lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 			list.add_child(lbl)
-			if i < history.size() - 1:
+			if i < last - 1:
 				list.add_child(HSeparator.new())
+		page_lbl.text = "Page %d / %d" % [page[0] + 1, pages]
+
+	if _m:
+		list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vb.add_child(list)
+	else:
+		var scroll := ScrollContainer.new()
+		scroll.custom_minimum_size = Vector2(0, 340)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		vb.add_child(scroll)
+		scroll.add_child(list)
+	fill.call()
+
+	if _m and pages > 1:
+		var nav := HBoxContainer.new()
+		nav.alignment = BoxContainer.ALIGNMENT_CENTER
+		nav.add_theme_constant_override("separation", 16)
+		vb.add_child(nav)
+		var prev := Button.new()
+		prev.text = "<"
+		prev.custom_minimum_size = Vector2(64, 48)
+		nav.add_child(prev)
+		page_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		page_lbl.custom_minimum_size = Vector2(160, 0)
+		nav.add_child(page_lbl)
+		var next := Button.new()
+		next.text = ">"
+		next.custom_minimum_size = Vector2(64, 48)
+		nav.add_child(next)
+		prev.pressed.connect(func():
+			page[0] = (page[0] - 1 + pages) % pages
+			fill.call())
+		next.pressed.connect(func():
+			page[0] = (page[0] + 1) % pages
+			fill.call())
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
