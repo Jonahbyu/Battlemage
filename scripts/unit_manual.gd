@@ -298,8 +298,7 @@ func _build() -> void:
 
 	var title_lbl := Label.new()
 	title_lbl.text = "UNIT MANUAL"
-	title_lbl.add_theme_font_size_override("font_size", 20)
-	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.38))
+	UITheme.style_title(title_lbl, 30, UITheme.GOLD_HI, false)
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title_lbl)
 
@@ -545,8 +544,10 @@ func _build_unit_entry(ud: UnitData) -> Control:
 	atk_bg.offset_bottom = 22
 	atk_bg.mouse_filter  = Control.MOUSE_FILTER_IGNORE
 	var atk_sty := StyleBoxFlat.new()
-	atk_sty.bg_color = Color(0.12, 0.60, 0.18)
-	atk_sty.set_corner_radius_all(4)
+	atk_sty.bg_color = Color(0.86, 0.60, 0.16)
+	atk_sty.border_color = Color(0.32, 0.18, 0.04)
+	atk_sty.set_border_width_all(1)
+	atk_sty.set_corner_radius_all(10)
 	atk_bg.add_theme_stylebox_override("panel", atk_sty)
 	var atk_lbl := Label.new()
 	atk_lbl.text = str(ud.base_attack)
@@ -570,8 +571,10 @@ func _build_unit_entry(ud: UnitData) -> Control:
 	hp_bg.offset_bottom = 22
 	hp_bg.mouse_filter  = Control.MOUSE_FILTER_IGNORE
 	var hp_sty := StyleBoxFlat.new()
-	hp_sty.bg_color = Color(0.72, 0.10, 0.10)
-	hp_sty.set_corner_radius_all(4)
+	hp_sty.bg_color = Color(0.70, 0.10, 0.12)
+	hp_sty.border_color = Color(0.30, 0.03, 0.04)
+	hp_sty.set_border_width_all(1)
+	hp_sty.set_corner_radius_all(10)
 	hp_bg.add_theme_stylebox_override("panel", hp_sty)
 	var hp_lbl := Label.new()
 	hp_lbl.text = str(ud.base_health)

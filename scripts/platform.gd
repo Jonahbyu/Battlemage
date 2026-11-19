@@ -130,6 +130,9 @@ func _on_node_added(node: Node) -> void:
 	if not (node is Control):
 		return
 	var p := node.get_parent()
+	# Content swapped into a de-scrolled ScrollContainer goes into its FitContainer.
+	if p is ScrollContainer and p.has_meta(_UNSCROLLED_META) and not (node is FitContainer) 			and not (node is ScrollBar):
+		_move_into_fit.call_deferred(p, node)
 	while p != null:
 		if p.is_in_group(_OVERLAY_GROUP):
 			_adapt_control.call_deferred(node)
@@ -180,6 +183,10 @@ func _adapt_control(c: Variant) -> void:
 		var ms := ctrl.custom_minimum_size * Vector2(minf(f, 1.5), f)
 		ms.x = minf(ms.x, max_w)
 		ctrl.custom_minimum_size = ms
+
+	# Phones don't scroll: the list is fitted to the space instead.
+	if ctrl is ScrollContainer and portrait and not ctrl.has_meta("keep_scroll"):
+		_unscroll.call_deferred(ctrl)
 
 	if ctrl is BoxContainer:
 		var box := ctrl as BoxContainer
@@ -239,7 +246,11 @@ func _stack_vertically(box: Variant) -> void:
 			if is_instance_valid(col) and is_instance_valid(content):
 				col.custom_minimum_size.y = content.get_combined_minimum_size().y
 		content.minimum_size_changed.connect(fit)
+		col.set_meta("_fit_cb", [content, fit])
 		fit.call()
+	# If stacking leaves a list too cramped to read, switch to tabs instead.
+	v.sort_children.connect(func(): _check_stack_overflow.call_deferred(v))
+	_check_stack_overflow.call_deferred(v)
 
 func _contains_scroll(n: Node) -> bool:
 	if n is ScrollContainer:
@@ -248,3 +259,139 @@ func _contains_scroll(n: Node) -> bool:
 		if _contains_scroll(child):
 			return true
 	return false
+
+
+# ── No scrolling on phones ───────────────────────────────────────────────────
+
+const _UNSCROLLED_META := "_unscrolled"
+const _TABBED_META := "_tabbed"
+# Below this, stacked text is too small to read; use tabs instead.
+const _STACK_MIN_SCALE := 0.9
+
+# For screens that aren't adapt_overlay() overlays but still shouldn't scroll.
+func no_scroll(scroll: ScrollContainer) -> void:
+	if is_mobile() and is_portrait():
+		_unscroll(scroll)
+
+func _unscroll(sc: Variant) -> void:
+	if not is_instance_valid(sc) or not (sc is ScrollContainer) or sc.has_meta(_UNSCROLLED_META):
+		return
+	var scroll := sc as ScrollContainer
+	scroll.set_meta(_UNSCROLLED_META, true)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var fit := FitContainer.new()
+	fit.set_meta(_ADAPTED_META, true)
+	var kids := scroll.get_children().filter(func(n): return n is Control and not (n is ScrollBar))
+	scroll.add_child(fit)
+	for k in kids:
+		_move_into_fit(scroll, k)
+
+func _move_into_fit(scroll: Variant, node: Variant) -> void:
+	if not is_instance_valid(scroll) or not is_instance_valid(node):
+		return
+	if (node as Node).get_parent() != scroll:
+		return
+	var fit: FitContainer = null
+	for c in (scroll as Node).get_children():
+		if c is FitContainer:
+			fit = c
+	if fit == null or node == fit:
+		return
+	(scroll as Node).remove_child(node)
+	fit.add_child(node)
+	if node is Control:
+		(node as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+func _min_fit_scale(n: Node) -> float:
+	var m := 1.0
+	if n is FitContainer and (n as Control).is_visible_in_tree():
+		m = (n as FitContainer).fit_scale
+	for c in n.get_children():
+		m = minf(m, _min_fit_scale(c))
+	return m
+
+func _check_stack_overflow(v: Variant) -> void:
+	if not is_instance_valid(v) or (v as Node).has_meta(_TABBED_META):
+		return
+	var box := v as Control
+	if not box.is_visible_in_tree() or box.size.y < 1.0:
+		return
+	await get_tree().process_frame
+	if not is_instance_valid(box) or box.has_meta(_TABBED_META):
+		return
+	var cols := box.get_children().filter(func(n): return n is Control)
+	var need := 0.0
+	for c: Control in cols:
+		need += c.get_combined_minimum_size().y
+	if _min_fit_scale(box) < _STACK_MIN_SCALE or need > box.size.y + 1.0:
+		_tabify(box)
+
+# Show one column at a time with a tab row above. The column with the most
+# buttons (the one you act in) opens first.
+func _tabify(box: Control) -> void:
+	box.set_meta(_TABBED_META, true)
+	var cols: Array = box.get_children().filter(func(n): return n is Control)
+	if cols.size() < 2:
+		return
+	var bar := HBoxContainer.new()
+	bar.set_meta(_ADAPTED_META, true)
+	bar.add_theme_constant_override("separation", 10)
+	box.add_child(bar)
+	box.move_child(bar, 0)
+	var group := ButtonGroup.new()
+	var best := 0
+	var best_buttons := -1
+	for i in range(cols.size()):
+		var col: Control = cols[i]
+		if col.has_meta("_fit_cb"):
+			var cb: Array = col.get_meta("_fit_cb")
+			if is_instance_valid(cb[0]) and (cb[0] as Control).minimum_size_changed.is_connected(cb[1]):
+				(cb[0] as Control).minimum_size_changed.disconnect(cb[1])
+			col.remove_meta("_fit_cb")
+		col.custom_minimum_size.y = 0
+		col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		var n := _count_buttons(col)
+		if n > best_buttons:
+			best_buttons = n
+			best = i
+		var b := Button.new()
+		b.set_meta(_ADAPTED_META, true)
+		b.toggle_mode = true
+		b.button_group = group
+		b.text = _tab_name(col, i)
+		b.custom_minimum_size = Vector2(0, 76)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", 30)
+		b.focus_mode = Control.FOCUS_NONE
+		bar.add_child(b)
+		b.toggled.connect(func(on: bool):
+			if on:
+				for j in range(cols.size()):
+					if is_instance_valid(cols[j]):
+						(cols[j] as Control).visible = j == i
+				b.text = _tab_name(col, i))
+	(bar.get_child(best) as Button).button_pressed = true
+
+func _count_buttons(n: Node) -> int:
+	var c := 1 if n is Button else 0
+	for k in n.get_children():
+		c += _count_buttons(k)
+	return c
+
+func _tab_name(col: Node, i: int) -> String:
+	var t := _first_label(col)
+	if t == "":
+		return "Page %d" % (i + 1)
+	t = t.split("
+")[0].strip_edges()
+	return t if t.length() <= 22 else t.substr(0, 20) + "…"
+
+func _first_label(n: Node) -> String:
+	if n is Label and (n as Label).text.strip_edges() != "":
+		return (n as Label).text
+	for c in n.get_children():
+		var t := _first_label(c)
+		if t != "":
+			return t
+	return ""

@@ -211,7 +211,14 @@ const TAP_SLOP := 16.0
 
 
 func _ready() -> void:
+	_style_screen()
 	_fit_to_screen()
+	# Phones: no scrolling, and long titles wrap instead of widening the screen.
+	Platform.no_scroll(scroll)
+	if Platform.is_mobile():
+		var t := get_node_or_null("Margin/CenterVBox/TitleLabel") as Label
+		if t != null:
+			t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	get_viewport().size_changed.connect(_fit_to_screen)
 
 
@@ -265,6 +272,7 @@ func _deal_cards() -> void:
 		card.initialize(unit_data)
 		card.show_buy_button(true)
 		card.buy_pressed.connect(_on_unit_card_buy_pressed)
+		_deal_in(card, cards_container.get_child_count() - 1)
 
 	_refresh_ui()
 
@@ -320,3 +328,36 @@ func _on_reroll_pressed() -> void:
 func _refresh_ui() -> void:
 	reroll_button.disabled = _rerolls_left <= 0
 	rerolls_label.text = "Rerolls: %d" % _rerolls_left
+
+
+# ── Facelift ─────────────────────────────────────────────────────────────────
+
+func _style_screen() -> void:
+	var title: Label = $Margin/CenterVBox/TitleLabel
+	title.text = "CHOOSE  A  UNIT"
+	UITheme.style_title(title, 40)
+	var vb: VBoxContainer = $Margin/CenterVBox
+	# Fixed 520px is wider than the picker on a portrait phone; stretch there.
+	var narrow := Platform.is_mobile() and Platform.is_portrait()
+	var orn := UITheme.ornament(0 if narrow else 520, Color(UITheme.GOLD_DIM, 0.9))
+	orn.size_flags_horizontal = Control.SIZE_EXPAND_FILL if narrow else Control.SIZE_SHRINK_CENTER
+	vb.add_child(orn)
+	vb.move_child(orn, title.get_index() + 1)
+	var bd := get_node_or_null("Backdrop") as Panel
+	if bd:
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color(UITheme.INK, 0.90)
+		bd.add_theme_stylebox_override("panel", st)
+	rerolls_label.add_theme_font_override("font", UITheme.font_display)
+	rerolls_label.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+
+
+# Cards rise and settle into place one after another.
+func _deal_in(card: Control, i: int) -> void:
+	card.modulate.a = 0.0
+	card.scale = Vector2(0.82, 0.82)
+	card.pivot_offset = card.custom_minimum_size * 0.5
+	var tw := card.create_tween().set_parallel(true)
+	var d := 0.04 + i * 0.07
+	tw.tween_property(card, "modulate:a", 1.0, 0.28).set_delay(d)
+	tw.tween_property(card, "scale", Vector2.ONE, 0.42).set_delay(d) 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
